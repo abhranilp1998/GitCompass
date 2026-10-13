@@ -17,6 +17,11 @@ static class Program
     }
     static void Run(string[] arguments)
     {
+        if (arguments.Contains("--responsive-only"))
+        {
+            var responsiveRoot = Path.Combine(Environment.CurrentDirectory, ".artifacts", "desktop-responsive-tests", Guid.NewGuid().ToString("N"));
+            ResponsiveLayoutChecks.Run(responsiveRoot); return;
+        }
         var app = arguments.FirstOrDefault() ?? Path.Combine(Environment.CurrentDirectory, "src", "GitCompass.Desktop", "bin", "Debug", "net10.0-windows10.0.17763.0", "GitCompass.exe");
         if (!File.Exists(app)) throw new FileNotFoundException("Build the desktop executable before its render tests.", app);
         if (arguments.Contains("--startup-only"))

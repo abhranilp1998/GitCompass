@@ -24,6 +24,7 @@ public partial class ShellWindow : Window
 {
     private readonly ShellViewModel model = new();
     private readonly AppStateStore store;
+    private readonly WindowsBackdrop backdrop;
     private readonly HttpClient http = new();
     private readonly WindowsTokenStore tokens;
     private readonly List<OperationEvent> events = [];
@@ -61,7 +62,7 @@ public partial class ShellWindow : Window
     public ShellWindow(string? stateRoot = null)
     {
         store = new(stateRoot); tokens = new(store.Root);
-        InitializeComponent(); DataContext = model;
+        InitializeComponent(); backdrop = new(this); InitializeResponsiveLayout(); DataContext = model;
         AccessSelector.SelectedIndex = 0;
         OutputChannel.Items.Add("Current project activity"); OutputChannel.Items.Add("Git operations"); OutputChannel.Items.Add("Remote checks"); OutputChannel.Items.Add("All registered projects"); OutputChannel.Items.Add("GitHub activity"); OutputChannel.SelectedIndex = 0;
         timer.Tick += async (_, _) => await TickAsync();
@@ -122,6 +123,7 @@ public partial class ShellWindow : Window
             updating = false;
             reviewing = false; model.Page = "Overview"; SelectNavigation("Overview");
             await OnBeginnerProjectOpenedAsync();
+            if (compactNavigation) SetNavigationDrawer(false);
             UpdateContext(); RenderPage();
             AddEvent(new(Guid.NewGuid(), model.Snapshot.ProjectId, DateTimeOffset.Now, OperationState.Succeeded, "inspection", "Opened and inspected in " + AccessText(workspace.Access.Get(model.Snapshot.ProjectId).Level) + ". Repository inspection does not start a shell or fetch.", OperationKind.Inspect));
         });
@@ -165,6 +167,7 @@ public partial class ShellWindow : Window
         if (AccessSelector is null) return;
         updating = true;
         var snapshot = model.Snapshot;
+        HeaderContext.Visibility = HeaderStatus.Visibility = snapshot is null ? Visibility.Collapsed : Visibility.Visible;
         ProjectPlaceholder.Visibility = snapshot is null ? Visibility.Visible : Visibility.Collapsed;
         if (snapshot is null || workspace is null)
         {
@@ -201,6 +204,7 @@ public partial class ShellWindow : Window
             if (grant.PendingLevel is not null) Banner("Access transition pending: closing owned activity before " + AccessText(grant.PendingLevel.Value) + " becomes active.");
         }
         updating = false; RenderOutput();
+        UpdateResponsiveLayout();
     }
     private async Task RefreshAsync(bool render = true)
     {
@@ -347,8 +351,7 @@ public partial class ShellWindow : Window
     private void SetActivityDock(bool open)
     {
         activityDockOpen = open;
-        DockRow.Height = new GridLength(open ? 220 : 0); DockRow.MinHeight = open ? 80 : 0;
-        DockSplitter.Height = open ? 6 : 0;
+        UpdateResponsiveLayout();
         ActivityToggleButton.Content = open ? "Hide activity details" : "Show activity details";
         AutomationProperties.SetName(ActivityToggleButton, ActivityToggleButton.Content.ToString());
     }
@@ -617,7 +620,7 @@ public partial class ShellWindow : Window
             var references = branches.Where(branch => !branch.IsRemote || !branch.Name.EndsWith("/HEAD", StringComparison.Ordinal)).Select(branch => new HistoryReference((branch.IsCurrent ? "Your branch: " : branch.IsRemote ? "Fetched copy: " : "Local branch: ") + branch.Name, branch.Id)).ToList();
             if (snapshot.HeadId is not null && !references.Any(reference => reference.Id == snapshot.HeadId)) references.Insert(0, new("Current version (HEAD)", snapshot.HeadId));
             if (references.Count == 0) return;
-            var referenceRow = Row(); var firstPanel = new StackPanel { Width = 300, Margin = new(0, 0, 14, 0) }; var secondPanel = new StackPanel { Width = 300 }; referenceRow.Children.Add(firstPanel); referenceRow.Children.Add(secondPanel);
+            var referenceRow = Columns(2); var firstPanel = new StackPanel { Margin = new(0, 0, 14, 0) }; var secondPanel = new StackPanel(); referenceRow.Children.Add(firstPanel); Grid.SetColumn(secondPanel, 1); referenceRow.Children.Add(secondPanel);
             Text(firstPanel, "First branch"); Text(secondPanel, "Second branch");
             var left = new ComboBox { ItemsSource = references, DisplayMemberPath = "Label", SelectedItem = references.FirstOrDefault(reference => reference.Id == (historyLeftId ?? snapshot.HeadId)) ?? references[0] };
             var right = new ComboBox { ItemsSource = references, DisplayMemberPath = "Label", SelectedItem = references.FirstOrDefault(reference => reference.Id == (historyRightId ?? snapshot.UpstreamId)) ?? references[0] };
@@ -663,6 +666,7 @@ public partial class ShellWindow : Window
     {
         var panel = new StackPanel(); var grid = new Grid(); var graph = new CommitGraph(commits);
         grid.ColumnDefinitions.Add(new() { Width = new GridLength(graph.Width) }); grid.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
+        grid.SizeChanged += (_, _) => grid.ColumnDefinitions[0].Width = new(Math.Min(graph.Width, Math.Max(48, grid.ActualWidth - 200)));
         var visibleHeight = Math.Min(commits.Length * CommitGraph.RowHeight, details ? 430 : 340); grid.Height = visibleHeight;
         var graphCanvas = new Canvas { Height = visibleHeight, ClipToBounds = true }; graphCanvas.Children.Add(graph); grid.Children.Add(graphCanvas);
         var list = new ListBox { BorderThickness = new(0), Height = visibleHeight };
@@ -914,6 +918,28 @@ public partial class ShellWindow : Window
             { Banner("Your appearance changed, but could not be saved for next time. " + error.Message); }
         };
         AutomationProperties.SetName(theme, "Appearance theme");
+        var materials = new ComboBox
+        {
+            ItemsSource = new[] { new WindowMaterialChoice("Mica", "Mica (Windows default)"), new WindowMaterialChoice("Acrylic", "Glass (Acrylic)"), new WindowMaterialChoice("Solid", "Solid") },
+            DisplayMemberPath = "Label", SelectedValuePath = "Key", SelectedValue = settings.WindowMaterial,
+            Width = 230, HorizontalAlignment = HorizontalAlignment.Left
+        };
+        AutomationProperties.SetName(materials, "Window background material");
+        PageContent.Children.Add(SettingsRow("Window background", "Use a subtle Windows tint, frosted glass, or a solid background. Text and content cards stay clear. Your choice saves automatically.", materials));
+        materials.SelectionChanged += async (_, _) =>
+        {
+            settings = settings with { WindowMaterial = materials.SelectedValue?.ToString() ?? "Mica" };
+            ApplyTheme(appliedTheme);
+            if (damagedSettings is not null) { Banner("The background is previewed. Preserve the damaged settings file before saving preferences."); return; }
+            try { await store.SaveSettingsAsync(settings); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            { Banner("Your background changed, but could not be saved for next time. " + error.Message); }
+        };
+        var materialStatus = new TextBlock { FontSize = 12, Margin = new(2, 0, 0, 8), TextWrapping = TextWrapping.Wrap };
+        materialStatus.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush");
+        materialStatus.SetBinding(TextBlock.TextProperty, new Binding(nameof(WindowsBackdrop.Status)) { Source = backdrop });
+        AutomationProperties.SetName(materialStatus, "Window background effect status");
+        PageContent.Children.Add(materialStatus);
         Subheading(PageContent, "Check for team updates");
         var interval = new TextBox { Text = settings.FetchIntervalMinutes.ToString(), Width = 100, MinHeight = 36 };
         AutomationProperties.SetName(interval, "Remote check interval in minutes (1–1440)");
@@ -929,7 +955,7 @@ public partial class ShellWindow : Window
         var quietHours = new CheckBox { Content = "Enabled", IsChecked = settings.QuietHoursStart.HasValue };
         AutomationProperties.SetName(quietHours, "Use quiet hours for team-update notifications");
         PageContent.Children.Add(SettingsRow("Quiet hours", "Pause team-update notices during these local hours. Overnight periods are supported.", quietHours));
-        var quietRow = Row(); var quietStartPanel = new StackPanel { Width = 190, Margin = new(0, 0, 18, 0) }; var quietEndPanel = new StackPanel { Width = 190 }; quietRow.Children.Add(quietStartPanel); quietRow.Children.Add(quietEndPanel);
+        var quietRow = Columns(2); var quietStartPanel = new StackPanel { Margin = new(0, 0, 18, 0) }; var quietEndPanel = new StackPanel(); quietRow.Children.Add(quietStartPanel); Grid.SetColumn(quietEndPanel, 1); quietRow.Children.Add(quietEndPanel);
         var quietStart = Input(quietStartPanel, "Start hour (0–23, local time)", (settings.QuietHoursStart ?? 22).ToString()); var quietEnd = Input(quietEndPanel, "End hour (0–23, local time)", (settings.QuietHoursEnd ?? 8).ToString()); PageContent.Children.Add(quietRow);
         void SetQuietInputs() => quietRow.IsEnabled = quietHours.IsChecked == true; quietHours.Checked += (_, _) => SetQuietInputs(); quietHours.Unchecked += (_, _) => SetQuietInputs(); SetQuietInputs();
         var advanced = new StackPanel();
@@ -979,7 +1005,9 @@ public partial class ShellWindow : Window
             for (var i = 0; i < names.Length; i++) System.Windows.Application.Current.Resources[names[i]] = contrast[i];
             System.Windows.Application.Current.Resources["PrimaryTextBrush"] = SystemColors.HighlightTextBrush;
         }
+        backdrop.Apply(settings.WindowMaterial, dark);
     }
+    private sealed record WindowMaterialChoice(string Key, string Label);
     private void WindowsAppearanceChanged(object sender, UserPreferenceChangedEventArgs e)
     {
         if (closing || Dispatcher.HasShutdownStarted) return;
@@ -1185,7 +1213,7 @@ public partial class ShellWindow : Window
     private static WrapPanel Row() => new() { Margin = new(0, 8, 0, 12) };
     private static Grid Columns(int count)
     {
-        var grid = new Grid { Margin = new(0, 0, 0, 16) }; for (var i = 0; i < count; i++) grid.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) }); return grid;
+        return new AdaptiveColumnsGrid(count, count == 3 ? 640 : 700) { Margin = new(0, 0, 0, 16) };
     }
     private static Border Card(object content)
     {
@@ -1195,9 +1223,8 @@ public partial class ShellWindow : Window
     private static void AddCard(Panel panel, object content) => panel.Children.Add(Card(content));
     private static Border SettingsRow(string title, string description, FrameworkElement action)
     {
-        var grid = new Grid(); grid.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) }); grid.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
-        var text = new StackPanel { Margin = new(0, 0, 18, 0) }; Text(text, title, false, 15, FontWeights.SemiBold); Text(text, description, true, 13); grid.Children.Add(text);
-        action.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(action, 1); grid.Children.Add(action); return Card(grid);
+        var text = new StackPanel(); Text(text, title, false, 15, FontWeights.SemiBold); Text(text, description, true, 13);
+        return Card(new AdaptiveSettingsGrid(text, action));
     }
     private static void AddCard(Grid grid, object content, int column) { var card = Card(content); Grid.SetColumn(card, column); grid.Children.Add(card); }
     private static FrameworkElement Stat(string number, string label, string explanation, Action action)
@@ -1208,7 +1235,7 @@ public partial class ShellWindow : Window
     }
     private static Button Action(string title, Action action, bool primary = false)
     {
-        var button = new Button { Content = title, Margin = new(0, 4, 8, 8), HorizontalAlignment = HorizontalAlignment.Left }; if (primary) button.SetResourceReference(StyleProperty, "PrimaryButton"); button.Click += (_, _) => action(); return button;
+        var button = new Button { Content = title, MaxWidth = 520, Margin = new(0, 4, 8, 8), HorizontalAlignment = HorizontalAlignment.Left }; if (primary) button.SetResourceReference(StyleProperty, "PrimaryButton"); button.Click += (_, _) => action(); return button;
     }
     private Button Action(string title, Func<Task> action, bool primary = false) => Action(title, (Action)(async () => { try { await action(); } catch (Exception e) { ShowProblem(title, e.Message); } }), primary);
     private void OpenLink(string url)

@@ -265,7 +265,12 @@ internal static class BeginnerWorkflowChecks
         var surface = (FrameworkElement)window.Content;
         var bitmap = new RenderTargetBitmap((int)surface.ActualWidth, (int)surface.ActualHeight, 96, 96, PixelFormats.Pbgra32);
         var visual = new DrawingVisual();
-        using (var drawing = visual.RenderOpen()) { var bounds = new Rect(0, 0, surface.ActualWidth, surface.ActualHeight); drawing.DrawRectangle(window.Background, null, bounds); drawing.DrawRectangle(new VisualBrush(surface), null, bounds); }
+        using (var drawing = visual.RenderOpen())
+        {
+            var bounds = new Rect(0, 0, surface.ActualWidth, surface.ActualHeight);
+            drawing.DrawRectangle(window.TryFindResource("WindowBrush") as Brush ?? window.Background, null, bounds);
+            drawing.DrawRectangle(new VisualBrush(surface) { ViewboxUnits = BrushMappingMode.Absolute, Viewbox = bounds, Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null, bounds);
+        }
         bitmap.Render(visual); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         using var file = File.Create(Path.Combine(root, name + ".png")); encoder.Save(file);
         File.WriteAllText(Path.Combine(root, name + ".txt"), window.SmokeDescription);

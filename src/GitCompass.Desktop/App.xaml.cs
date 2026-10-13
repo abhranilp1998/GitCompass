@@ -38,8 +38,9 @@ public partial class App : System.Windows.Application
             using (var drawing = visual.RenderOpen())
             {
                 var bounds = new Rect(0, 0, surface.ActualWidth, surface.ActualHeight);
-                drawing.DrawRectangle(window.Background, null, bounds);
-                drawing.DrawRectangle(new VisualBrush(surface), null, bounds);
+                // A WPF bitmap cannot capture the desktop compositor's backdrop.
+                drawing.DrawRectangle(window.TryFindResource("WindowBrush") as Brush ?? window.Background, null, bounds);
+                drawing.DrawRectangle(new VisualBrush(surface) { ViewboxUnits = BrushMappingMode.Absolute, Viewbox = bounds, Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null, bounds);
             }
             bitmap.Render(visual);
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);

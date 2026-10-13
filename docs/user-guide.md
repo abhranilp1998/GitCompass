@@ -2,6 +2,12 @@
 
 The current development build has a Windows 11 Fluent interface and a resumable beginner walkthrough. Run `powershell -ExecutionPolicy Bypass -File scripts/run.ps1 -Development` from the source workspace, then choose **Start the walkthrough** or **Practice with a sample project**. Choose any ordinary project folder; GitCompass first asks whether these are your own files or a team copy. For your own files, it guides permission, reviewed initialization, author details, selected files and a local version. For a team copy, keep the original and choose a separate empty download folder. The [update record](beginner-fluent-update.md) explains the current behavior and verification. The portable 0.1.1 trial described below predates this interface.
 
+## Smaller windows and appearance in the source build
+
+In the current source build, a smaller window puts navigation under the menu button at the upper left. Page labels remain visible in the drawer; select a page, or use arrows and Enter, to return to it. **Activity** opens or hides tools at the upper right. **More** keeps extra activity and terminal commands available without crowding the page. Text and settings controls stack when space is limited, and resizing keeps your current inputs.
+
+In **Settings → Window background**, choose **Mica (Windows default)** for a subtle tint, **Glass (Acrylic)** for Windows frosted glass, or **Solid**. This choice saves automatically and works with System, Light, and Dark appearance. Windows 11 22H2 or later is needed for the native effects; Windows transparency, contrast, remote-session, and energy-saver preferences can cause an explained solid fallback. The [responsive update record](responsive-glass-update.md) describes the tested behavior.
+
 ## Start the portable app
 
 Extract the whole `GitCompass-0.1.1-win-x64.zip` into a folder you can write to. Run `GitCompass.exe` with its accompanying files in that folder. This internal trial is unsigned. It includes its .NET runtime; you do not need Visual Studio, VS Code or a .NET SDK to use it. The original 0.1.0 trial remains a separate older copy.

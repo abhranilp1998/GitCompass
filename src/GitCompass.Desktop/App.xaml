@@ -1,10 +1,12 @@
 <Application x:Class="GitCompass.Desktop.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:GitCompass.Desktop"
              ThemeMode="System">
   <Application.Resources>
     <!-- Native Fluent templates retain keyboard, focus, disabled and popup behavior. -->
     <SolidColorBrush x:Key="WindowBrush" Color="#F3F3F3" />
+    <SolidColorBrush x:Key="ShellBackdropBrush" Color="#F3F3F3" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="TextBrush" Color="#1A1A1A" />
     <SolidColorBrush x:Key="MutedBrush" Color="#5F5F5F" />
@@ -13,6 +15,8 @@
     <SolidColorBrush x:Key="TintBrush" Color="#EAF3FB" />
     <SolidColorBrush x:Key="WarningBrush" Color="#9D5D00" />
     <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFFFFF" />
+    <DataTemplate x:Key="WrappedButtonText"><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate>
+    <local:StringContentTemplateSelector x:Key="ButtonContentSelector" StringTemplate="{StaticResource WrappedButtonText}" />
 
     <Style TargetType="Window" BasedOn="{StaticResource DefaultWindowStyle}">
       <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI" />
@@ -44,6 +48,7 @@
     </Style>
     <!-- Set spacing and colors without replacing native control templates. -->
     <Style TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+      <Setter Property="ContentTemplateSelector" Value="{StaticResource ButtonContentSelector}" />
       <Setter Property="Padding" Value="14,8" /><Setter Property="MinHeight" Value="36" />
       <Setter Property="Margin" Value="0,0,8,0" />
       <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
@@ -52,6 +57,7 @@
       <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
     </Style>
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+      <Setter Property="ContentTemplateSelector" Value="{StaticResource ButtonContentSelector}" />
       <Setter Property="Padding" Value="14,8" /><Setter Property="MinHeight" Value="36" />
       <Setter Property="Margin" Value="0,0,8,0" />
       <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />

@@ -79,6 +79,8 @@ internal static class UiEvidenceChecks
         window.ConfigureView("History graph", "Light"); await Until(() => HasButton("Show current branch and team copy"));
         Click("Show current branch and team copy"); await Until(() => !Texts().Any(text => text.Contains("Viewing recorded history:")) && IsIdle());
 
+        ((Button)window.FindName("ActivityToggleButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+        await Until(() => ((FrameworkElement)window.FindName("DockSurface")).IsVisible);
         var groups = (StackPanel)window.FindName("OutputGroups");
         var inspectedGroup = groups.Children.OfType<Expander>().First(); inspectedGroup.IsExpanded = true; window.UpdateLayout();
         Check(groups.Children.OfType<Expander>().Any(group => group.Header?.ToString()?.Contains("Read project status") == true) && HasButton("Copy this operation"), "output uses truthful inspect labels and accessible per-operation groups/copy controls");
@@ -175,7 +177,7 @@ internal static class UiEvidenceChecks
     private static void Capture(string root, string name)
     {
         window!.UpdateLayout(); var surface = (FrameworkElement)window.Content;
-        var visual = new DrawingVisual(); using (var drawing = visual.RenderOpen()) { var bounds = new Rect(0, 0, surface.ActualWidth, surface.ActualHeight); drawing.DrawRectangle(window.Background, null, bounds); drawing.DrawRectangle(new VisualBrush(surface), null, bounds); }
+        var visual = new DrawingVisual(); using (var drawing = visual.RenderOpen()) { var bounds = new Rect(0, 0, surface.ActualWidth, surface.ActualHeight); drawing.DrawRectangle((Brush)window.FindResource("WindowBrush"), null, bounds); drawing.DrawRectangle(new VisualBrush(surface) { ViewboxUnits = BrushMappingMode.Absolute, Viewbox = bounds, ViewportUnits = BrushMappingMode.Absolute, Viewport = bounds, Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null, bounds); }
         var bitmap = new RenderTargetBitmap((int)surface.ActualWidth, (int)surface.ActualHeight, 96, 96, PixelFormats.Pbgra32); bitmap.Render(visual);
         var folder = Path.Combine(root, "native-states"); Directory.CreateDirectory(folder); using var file = File.Create(Path.Combine(folder, name + ".png")); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap)); encoder.Save(file);
     }

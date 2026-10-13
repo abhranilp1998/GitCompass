@@ -6,6 +6,7 @@ public sealed record AppSettings
 {
     public int SchemaVersion { get; init; } = 1;
     public string Theme { get; init; } = "System";
+    public string WindowMaterial { get; init; } = "Mica";
     public string? GitExecutablePath { get; init; }
     public string? GitHubClientId { get; init; }
     public int FetchIntervalMinutes { get; init; } = 5;
@@ -47,10 +48,11 @@ public sealed class AppStateStore
     public Task SaveSettingsAsync(AppSettings settings, CancellationToken cancellationToken = default)
     {
         if (!ValidSettings(settings))
-            throw new ArgumentException("Unsupported settings schema, monitoring interval or quiet hours. Quiet hours use two different local hours from 0 to 23.");
+            throw new ArgumentException("Unsupported settings schema, window material, monitoring interval or quiet hours. Quiet hours use two different local hours from 0 to 23.");
         return WriteAsync("settings.json", settings, cancellationToken);
     }
     private static bool ValidSettings(AppSettings settings) => settings.SchemaVersion == 1 &&
+        settings.WindowMaterial is "Mica" or "Acrylic" or "Solid" &&
         settings.FetchIntervalMinutes is >= 1 and <= 1440 &&
         (settings.QuietHoursStart is null && settings.QuietHoursEnd is null ||
          settings.QuietHoursStart is >= 0 and <= 23 && settings.QuietHoursEnd is >= 0 and <= 23 && settings.QuietHoursStart != settings.QuietHoursEnd);

@@ -303,8 +303,12 @@ public partial class ShellWindow
         else AddCard(PageContent, save);
     }
 
-    private void AddGuideSection(Panel content, string title, bool complete) => AddCard(PageContent,
-        new Expander { Header = title, Content = content, IsExpanded = !complete });
+    private void AddGuideSection(Panel content, string title, bool complete)
+    {
+        var section = new Expander { Header = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap }, Content = content, IsExpanded = !complete };
+        System.Windows.Automation.AutomationProperties.SetName(section, title);
+        AddCard(PageContent, section);
+    }
 
     private void BuildAuthorSetup()
     {
