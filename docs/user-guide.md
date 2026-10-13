@@ -1,5 +1,7 @@
 # Getting started with GitCompass
 
+The current development build has a Windows 11 Fluent interface and a resumable beginner walkthrough. Run `powershell -ExecutionPolicy Bypass -File scripts/run.ps1 -Development` from the source workspace, then choose **Start the walkthrough** or **Practice with a sample project**. Choose any ordinary project folder; GitCompass first asks whether these are your own files or a team copy. For your own files, it guides permission, reviewed initialization, author details, selected files and a local version. For a team copy, keep the original and choose a separate empty download folder. The [update record](beginner-fluent-update.md) explains the current behavior and verification. The portable 0.1.1 trial described below predates this interface.
+
 ## Start the portable app
 
 Extract the whole `GitCompass-0.1.1-win-x64.zip` into a folder you can write to. Run `GitCompass.exe` with its accompanying files in that folder. This internal trial is unsigned. It includes its .NET runtime; you do not need Visual Studio, VS Code or a .NET SDK to use it. The original 0.1.0 trial remains a separate older copy.

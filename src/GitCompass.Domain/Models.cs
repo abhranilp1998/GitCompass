@@ -22,6 +22,11 @@ public sealed record PushDestination(string Remote, string Url, string SourceRef
 public sealed record RemoteObservation(RemoteCheckState State, DateTimeOffset? LastSuccessfulCheck = null, string? Remote = null, string? Error = null);
 public sealed record RepositorySnapshot(Guid ProjectId, long Generation, DateTimeOffset ObservedAt, ProjectRegistration Project, string? HeadId, string? Branch, BranchState BranchState, string? Upstream, string? UpstreamId, PushDestination? Push, ImmutableArray<FileState> Files, GitOperation ActiveOperation, int? Ahead, int? Behind, bool IsShallow, RemoteObservation Remote, string Fingerprint, string GitVersion, ImmutableArray<string> Problems)
 {
+    public string? AuthorName { get; init; }
+    public string? AuthorEmail { get; init; }
+    public bool HasAuthorIdentity => !string.IsNullOrWhiteSpace(AuthorName) && !string.IsNullOrWhiteSpace(AuthorEmail);
+    public ImmutableArray<string> RemoteNames { get; init; } = [];
+    public bool HasRemotes => !RemoteNames.IsDefaultOrEmpty;
     public bool IsClean => Files.Length == 0;
     public bool HasConflicts => Files.Any(f => f.Kind == FileKind.Conflicted);
     public bool HasLocalEdits => Files.Any(f => f.IsStaged || f.IsUnstaged);

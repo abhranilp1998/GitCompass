@@ -53,6 +53,9 @@ public partial class ShellWindow : Window
     private CancellationTokenSource? authenticationCancellation;
     private string? setupError;
     private string? damagedSettings;
+    private string? pendingProjectFolder;
+    private string appliedTheme = "System";
+    private bool activityDockOpen;
     public string SmokeDescription => $"GitCompass WPF shell rendered. Page: {model.Page}. Project: {model.Snapshot?.Project.DisplayName ?? "none"}. Real observed branch: {model.Snapshot?.Branch ?? "none"}. Files: {model.Snapshot?.Files.Length.ToString() ?? "none"}. History rows: {model.History?.Commits.Length.ToString() ?? "none"}. Access: {(model.Snapshot is null ? "no project" : workspace?.Access.Get(model.Snapshot.ProjectId).ToString())}.";
 
     public ShellWindow(string? stateRoot = null)
@@ -65,6 +68,7 @@ public partial class ShellWindow : Window
         outputTimer.Tick += (_, _) => { if (outputDirty) { outputDirty = false; RenderOutput(); } }; outputTimer.Start();
         Activated += async (_, _) => { if (ready && !model.Busy && !reviewing) await RefreshAsync(false); };
         Closing += OnClosing;
+        SystemEvents.UserPreferenceChanged += WindowsAppearanceChanged;
     }
     public void ConfigureView(string? page, string? theme)
     {
@@ -75,6 +79,7 @@ public partial class ShellWindow : Window
     public async Task InitializeAsync()
     {
         try { settings = await store.LoadSettingsAsync(); } catch (Exception e) { setupError = "Settings could not be loaded. " + e.Message; if (e is AppStateException state) damagedSettings = state.PreservedPath; }
+        await InitializeBeginnerAsync();
         ApplyTheme(settings.Theme);
         try { learning = new LearningCatalog(); } catch (Exception e) { setupError = "Offline lessons could not be loaded. " + e.Message; }
         var executable = settings.GitExecutablePath ?? DependencyProbe.FindGitExecutable();
@@ -87,7 +92,7 @@ public partial class ShellWindow : Window
             workspace.Access.Changed += grant => Dispatcher.BeginInvoke(() => { if (model.Snapshot?.ProjectId == grant.ProjectId) UpdateContext(); });
             StartScheduler();
         }
-        else setupError = "Git for Windows was not found. Install Git or select its executable in Settings, then restart GitCompass.";
+        else setupError = "Git is not installed or could not be found. Git remembers versions of your files on this computer. Open Settings for installation guidance, then check again to continue.";
         ready = true; await UpdateRecentProjectsAsync(); UpdateContext(); RenderPage(); timer.Start();
     }
 
@@ -100,7 +105,7 @@ public partial class ShellWindow : Window
     }
     public async Task OpenProjectAsync(string folder)
     {
-        if (workspace is null) { Banner(setupError ?? "Git is required to inspect a project."); Navigate("Settings"); return; }
+        if (workspace is null) { pendingProjectFolder = folder; Banner(setupError ?? "Install Git to continue with this folder. Your files have not been changed."); Navigate("Settings"); return; }
         await WorkAsync(async () =>
         {
             authenticationCancellation?.Cancel();
@@ -115,7 +120,9 @@ public partial class ShellWindow : Window
             foreach (var item in ProjectSelector.Items)
                 if (item is RecentProject recent && string.Equals(recent.Folder, model.Snapshot.Project.SelectedFolder, StringComparison.OrdinalIgnoreCase)) ProjectSelector.SelectedItem = item;
             updating = false;
-            reviewing = false; model.Page = "Overview"; SelectNavigation("Overview"); UpdateContext(); RenderPage();
+            reviewing = false; model.Page = "Overview"; SelectNavigation("Overview");
+            await OnBeginnerProjectOpenedAsync();
+            UpdateContext(); RenderPage();
             AddEvent(new(Guid.NewGuid(), model.Snapshot.ProjectId, DateTimeOffset.Now, OperationState.Succeeded, "inspection", "Opened and inspected in " + AccessText(workspace.Access.Get(model.Snapshot.ProjectId).Level) + ". Repository inspection does not start a shell or fetch.", OperationKind.Inspect));
         });
     }
@@ -135,7 +142,9 @@ public partial class ShellWindow : Window
         if (requested == old.Level && old.PendingLevel is null) return;
         if (requested != AccessLevel.ReadOnly && !snapshot.Project.Trusted)
         {
-            var explanation = requested == AccessLevel.MonitorOnly ? "Monitor only permits fetching Git metadata and hosted reads. Git operations may invoke this repository's configured transports and credential helpers." : "Allow changes unlocks reviewed file/index/history operations, uploads, and interactive shell sessions for this app session. Repository configuration may run hooks, filters, transports, or helpers.";
+            var explanation = requested == AccessLevel.MonitorOnly
+                ? "GitCompass can check for team updates, without applying them to your project files. Checking may use this project's connection and sign-in tools."
+                : "GitCompass can save versions, apply reviewed updates, upload saved work, and open a terminal for this session. Each guided change still has a review before it runs. Project settings may run configured hooks, filters or connection tools.";
             if (MessageBox.Show(this, explanation + "\n\nOnly enable access for a project whose origin and configuration you trust. Trust this project and enable " + AccessText(requested) + "?", "Review project access — " + snapshot.Project.DisplayName, MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) { UpdateContext(); return; }
             workspace.SetTrusted(snapshot.ProjectId, true);
         }
@@ -172,8 +181,8 @@ public partial class ShellWindow : Window
             ProjectPath.ToolTip = ProjectPath.Text;
             var last = snapshot.Remote.LastSuccessfulCheck;
             FreshnessLabel.Text = snapshot.Project.Kind == RepositoryKind.Candidate ? "Git not set up • no remote checks" : last.HasValue ? "Last check " + last.Value.ToLocalTime().ToString("g") + (snapshot.Remote.State == RemoteCheckState.Succeeded ? "" : " • stale") : "Remote not checked • cached refs";
-            CheckRemoteButton.IsEnabled = hasWorkingRepository && grant.Level >= AccessLevel.MonitorOnly && grant.PendingLevel is null && !model.Busy;
-            CheckRemoteButton.ToolTip = !hasWorkingRepository ? "A working Git repository and configured remote are needed for a remote check." : grant.Level == AccessLevel.ReadOnly ? "Monitor only permits a remote check. Read-only uses cached information." : "Fetch updates known remote history; your project files are not updated.";
+            CheckRemoteButton.IsEnabled = hasWorkingRepository && snapshot.HasRemotes && snapshot.Upstream is not null && grant.Level >= AccessLevel.MonitorOnly && grant.PendingLevel is null && !model.Busy;
+            CheckRemoteButton.ToolTip = !hasWorkingRepository || !snapshot.HasRemotes ? "This project needs an online or team connection before checking for updates." : snapshot.Upstream is null ? "Choose the connected team branch in project setup before checking its updates." : grant.Level == AccessLevel.ReadOnly ? "Choose Monitor only to check for team updates. Read-only uses the last known information." : "Checks the team's history without changing your project files.";
             ToolTipService.SetShowOnDisabled(CheckRemoteButton, true);
             NewTerminalButton.IsEnabled = !model.Busy && Permission(snapshot.ProjectId, OperationKind.Terminal);
             NewTerminalButton.ToolTip = grant.Level < AccessLevel.AllowChanges ? "Requires Allow changes: a real shell can modify files. Use Branches or History graph to inspect branches safely." : "An interactive shell can modify files. An active operation or access transition may need to finish first.";
@@ -181,12 +190,14 @@ public partial class ShellWindow : Window
             TerminalModeText.Text = grant.PendingLevel is not null ? "Access transition pending: owned activity is closing." : grant.Level == AccessLevel.AllowChanges ? "Sessions retain their originating project when you switch projects." : "Allow changes is required for an interactive terminal.";
             AccessHelper.Text = grant.PendingLevel is not null ? "Locking this project: owned activity must finish closing before the stricter mode is active." : grant.Level switch
             {
-                AccessLevel.ReadOnly => "Read-only: view branches, history and diffs without switching branches. Monitor only enables remote checks; Allow changes enables reviewed operations.",
-                AccessLevel.MonitorOnly => "Monitor only: view branches, history and diffs, and check remote. Switching branches, saving versions, uploading, and interactive shells require Allow changes.",
-                _ => "Allow changes: reviewed project operations and interactive shells are unlocked for this app session."
+                AccessLevel.ReadOnly => "Read-only: look around without changing the project. Choose Allow changes when you are ready to save a version.",
+                AccessLevel.MonitorOnly => "Monitor only: look around and check for team updates. Saving versions or applying updates requires Allow changes.",
+                _ => "Allow changes: you can review and save versions, apply updates, and upload saved work for this session."
             };
             if (snapshot.Project.Kind == RepositoryKind.Candidate && grant.PendingLevel is null)
-                AccessHelper.Text = "This folder is not using Git. Opening it preserves its files. Review setup in Overview; initialization or cloning requires Allow changes. Monitor only has no remote to check here.";
+                AccessHelper.Text = "Your files are unchanged. Home helps you choose local version history or your team's existing project.";
+            if (!string.Equals(snapshot.Project.SelectedFolder, snapshot.Project.RootPath, StringComparison.OrdinalIgnoreCase))
+                AccessHelper.Text += " You selected a folder inside this project; Git tracks the whole project shown above.";
             if (grant.PendingLevel is not null) Banner("Access transition pending: closing owned activity before " + AccessText(grant.PendingLevel.Value) + " becomes active.");
         }
         updating = false; RenderOutput();
@@ -274,7 +285,12 @@ public partial class ShellWindow : Window
                 model.Snapshot = result.Snapshot; model.History = await workspace.HistoryAsync(result.Snapshot.ProjectId);
                 historySkip = 0; historyLeftId = historyRightId = historyLeftLabel = historyRightLabel = null;
                 if (result.PreservedStashId is not null) stashes[result.Snapshot.ProjectId] = result.PreservedStashId;
-                reviewing = false; Banner(result.Summary + (result.OutputTruncated ? " Output was truncated; review retained diagnostics." : "")); RenderPage();
+                reviewing = false;
+                var localSaveNote = preview.Request.Kind == OperationKind.Commit && result.State == OperationState.Succeeded
+                    ? " This version is saved on this computer. It has not uploaded your work to a team service."
+                    : "";
+                Banner(result.Summary + localSaveNote + (result.OutputTruncated ? " Output was truncated; review retained diagnostics." : ""));
+                await OnBeginnerOperationCompletedAsync(preview.Request.Kind, result.State); RenderPage();
                 if (result.State != OperationState.Succeeded) ShowProblem(preview.Title, result.Summary);
             });
         }, true));
@@ -290,13 +306,70 @@ public partial class ShellWindow : Window
     private void Navigate(string page) { reviewing = false; model.Page = page; SelectNavigation(page); RenderPage(); }
     private void SelectNavigation(string page)
     {
-        updating = true; foreach (ListBoxItem item in Navigation.Items) if (item.Tag?.ToString() == page) Navigation.SelectedItem = item; updating = false;
+        var category = page switch { "Walkthrough" => "Learn", "Author setup" => "Changes", _ => page };
+        updating = true; foreach (ListBoxItem item in Navigation.Items) if (item.Tag?.ToString() == category) Navigation.SelectedItem = item; updating = false;
+    }
+    private static string PageName(string page) => page switch
+    {
+        "Overview" => "Home", "Changes" => "Changed files", "History graph" => "Saved versions",
+        "Pull requests" => "Sharing", "Walkthrough" => "First version walkthrough", "Author setup" => "Author details", _ => page
+    };
+    private void NavigationSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        if (Navigation is null) return;
+        var query = NavigationSearch.Text.Trim(); var matches = 0;
+        var ignoredWords = new[] { "my", "the", "a", "an", "to", "how", "i", "do", "can", "what", "is" };
+        var words = query.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(word => !ignoredWords.Contains(word, StringComparer.OrdinalIgnoreCase)).ToArray();
+        foreach (ListBoxItem item in Navigation.Items)
+        {
+            var route = item.Tag?.ToString() ?? "";
+            var terms = route switch
+            {
+                "Overview" => "home status overview next step project",
+                "Projects" => "projects folder open choose download clone setup",
+                "Changes" => "changed files save work commit select stage diff",
+                "History graph" => "saved versions history graph log timeline",
+                "Branches" => "branches separate task switch",
+                "Pull requests" => "sharing github online upload push team review pull request",
+                "Learn" => "learn git help explain explanation walkthrough tutorial practice commit stage branch branches push pull github save upload",
+                _ => "settings appearance theme light dark system notifications installation"
+            };
+            var visible = query.Length == 0 || words.Length > 0 && words.All(word => terms.Contains(word, StringComparison.OrdinalIgnoreCase));
+            item.Visibility = visible ? Visibility.Visible : Visibility.Collapsed; if (visible) matches++;
+        }
+        if (NavigationSearchSummary is not null)
+        {
+            NavigationSearchSummary.Text = matches == 0 ? "No pages match. Try save, history, sharing, or theme." : "";
+            NavigationSearchSummary.Visibility = matches == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+    private void ToggleActivityDock(object sender, RoutedEventArgs e) => SetActivityDock(!activityDockOpen);
+    private void SetActivityDock(bool open)
+    {
+        activityDockOpen = open;
+        DockRow.Height = new GridLength(open ? 220 : 0); DockRow.MinHeight = open ? 80 : 0;
+        DockSplitter.Height = open ? 6 : 0;
+        ActivityToggleButton.Content = open ? "Hide activity details" : "Show activity details";
+        AutomationProperties.SetName(ActivityToggleButton, ActivityToggleButton.Content.ToString());
+    }
+    private void BuildProjects()
+    {
+        Heading("Projects", "Choose the folder containing your project files. GitCompass checks whether it already remembers versions.");
+        PageContent.Children.Add(Action("Select project folder", () => PickFolder(this, new RoutedEventArgs()), true));
+        Text(PageContent, "Opening a folder does not change its files or start online sharing.", true);
+        foreach (var recent in ProjectSelector.Items.OfType<RecentProject>())
+            PageContent.Children.Add(SettingsRow(recent.DisplayName, recent.Folder, Action("Open project", async () => await OpenProjectAsync(recent.Folder))));
+        if (ProjectSelector.Items.Count == 0) Text(PageContent, "Your recently opened projects will appear here.", true);
+        BuildGuideEntry(PageContent);
     }
     private void RenderPage()
     {
         if (!ready || PageContent is null) return;
         renderGeneration++;
         PageContent.Children.Clear();
+        if (model.Page == "Projects") { BuildProjects(); return; }
+        if (model.Page == "Walkthrough") { BuildWalkthrough(); return; }
+        if (model.Page == "Author setup" && model.Snapshot is not null && workspace is not null) { BuildAuthorSetup(); return; }
         if (model.Page == "Learn") { BuildLearn(); return; }
         if (model.Page == "Settings") { BuildSettings(); return; }
         if (model.Snapshot is null || workspace is null) { BuildWelcome(); return; }
@@ -305,39 +378,24 @@ public partial class ShellWindow : Window
     }
     private void BuildWelcome()
     {
-        Heading("Open your project", "Choose a folder to understand its Git status and next steps.");
-        var hero = new StackPanel { Margin = new(0, 12, 0, 28) };
-        hero.Children.Add(Action("Select project folder", () => PickFolder(this, new RoutedEventArgs()), true));
-        Text(hero, "Inspection does not change your files or commit history. New projects open in Read-only.", true);
-        AddCard(PageContent, hero);
-        if (setupError is not null) { AddCard(PageContent, setupError); PageContent.Children.Add(Action("Open setup settings", () => Navigate("Settings"))); }
-        Subheading(PageContent, "Recent projects");
-        if (ProjectSelector.Items.Count == 0) Text(PageContent, "Your recently opened folders will appear here.", true);
-        foreach (var item in ProjectSelector.Items.OfType<RecentProject>())
-        {
-            var panel = new StackPanel(); Text(panel, item.DisplayName); Text(panel, item.Folder, true); panel.Children.Add(Action("Open project", async () => await OpenProjectAsync(item.Folder))); AddCard(PageContent, panel);
-        }
-        var steps = Columns(3);
-        AddCard(steps, "1  Select folder\nChoose your existing project or an empty destination for a clone.", 0);
-        AddCard(steps, "2  Understand status\nSee file changes, local versions, team versions, and real history.", 1);
-        AddCard(steps, "3  Choose next step\nReview the reason, effects, and command before a deliberate action.", 2);
-        PageContent.Children.Add(steps);
-        PageContent.Children.Add(Action("Learn the local-to-uploaded workflow", () => ShowLesson("journey")));
+        BuildBeginnerWelcome();
     }
     private void BuildOverview()
     {
-        var snapshot = model.Snapshot!; var plan = workspace!.Plan(snapshot.ProjectId, model.Goal);
+        var snapshot = model.Snapshot!;
+        if (snapshot.Project.Kind == RepositoryKind.Candidate) { BuildCandidateOverview(); return; }
+        var plan = workspace!.Plan(snapshot.ProjectId, model.Goal);
         var alreadyUploaded = UploadedCurrentVersion(snapshot);
         var firstIsUploadedPush = alreadyUploaded && plan.Steps.FirstOrDefault()?.Action == OperationKind.Push;
         Heading(firstIsUploadedPush ? "Your reviewed version was uploaded" : plan.Steps.FirstOrDefault()?.Title ?? "Understand this project", firstIsUploadedPush ? "Check remote to refresh the cached team copy. A successful upload does not refresh these cached comparisons." : plan.Steps.FirstOrDefault()?.Reason ?? "Repository status was read from Git.");
+        BuildGuideEntry(PageContent);
         if (snapshot.HasLocalEdits) PageContent.Children.Add(Action("Review changed files", () => Navigate("Changes"), true));
         var goal = new ComboBox { Width = 250, HorizontalAlignment = HorizontalAlignment.Left, ItemsSource = new[] { "Understand this project", "Upload my work", "Get the latest changes", "Start a task", "Prepare a pull request", "Understand this error" }, SelectedIndex = (int)model.Goal, Margin = new(0, 0, 0, 15) };
         AutomationProperties.SetName(goal, "Your current goal"); goal.SelectionChanged += (_, _) => { model.Goal = (UserGoal)goal.SelectedIndex; BuildOverviewReplacement(); }; PageContent.Children.Add(goal);
-        if (snapshot.Project.Kind == RepositoryKind.Candidate) { BuildFirstProject(); return; }
         var stats = Columns(3);
         AddCard(stats, Stat(snapshot.Files.Length.ToString(), "changed files", "Staged and unstaged contents are reviewed separately.", () => Navigate("Changes")), 0);
-        AddCard(stats, Stat(snapshot.Behind?.ToString() ?? "?", "team-only commits", snapshot.Upstream is null ? "No tracking branch configured." : "In cached " + snapshot.Upstream + "; review before downloading.", () => Navigate("History graph")), 1);
-        AddCard(stats, Stat(snapshot.Ahead?.ToString() ?? "?", "local-only commits", snapshot.Upstream is null ? "No tracking branch configured." : "Ahead of cached " + snapshot.Upstream + ". Upload destination is reviewed separately.", () => Navigate("History graph")), 2); PageContent.Children.Add(stats);
+        AddCard(stats, Stat(!snapshot.HasRemotes ? "Local" : snapshot.Behind?.ToString() ?? "?", "team updates", !snapshot.HasRemotes ? "No online connection. Local version history works on its own." : snapshot.Upstream is null ? "Choose a team branch before comparing." : "Versions in the last checked team history; review before applying.", () => { if (snapshot.HasRemotes) Navigate("History graph"); else BuildProjectSetup(); }), 1);
+        AddCard(stats, Stat(!snapshot.HasRemotes ? "Here" : snapshot.Ahead?.ToString() ?? "?", "versions saved here", !snapshot.HasRemotes ? "Saved versions stay on this computer. Sharing is optional." : snapshot.Upstream is null ? "Upload status is unknown until a connection is configured." : "Versions ahead of the last checked team copy. Upload is reviewed separately.", () => Navigate("History graph")), 2); PageContent.Children.Add(stats);
         if (uploadedVersions.TryGetValue(snapshot.ProjectId, out var uploaded))
             AddCard(PageContent, "Last successful upload in this session: version " + Short(uploaded.CommitId) + " to " + Redactor.Redact(uploaded.Url) + " • branch " + uploaded.DestinationBranch + " at " + uploaded.Time.ToLocalTime().ToString("g") + ".\nCached team comparisons can still show local-only commits until another Check remote. This records the upload at that time; it does not claim the server is unchanged now.");
         var body = Columns(2);
@@ -375,6 +433,7 @@ public partial class ShellWindow : Window
         {
             case OperationKind.Commit: case OperationKind.Stage: case OperationKind.Unstage: Navigate("Changes"); break;
             case OperationKind.Initialize: BuildFirstProject(); break;
+            case OperationKind.ConfigureIdentity: Navigate("Author setup"); break;
             case OperationKind.ConfigureRemote: BuildProjectSetup(); break;
             case OperationKind.Merge: BuildMerge(); break;
             case OperationKind.Stash: BuildStash(); break;
@@ -384,14 +443,7 @@ public partial class ShellWindow : Window
     }
     private void BuildFirstProject()
     {
-        var target = model.Snapshot!.Project.RootPath;
-        AddCard(PageContent, "This folder has no Git history. Keep a dated backup before the first publication. Opening it has not initialized Git.\n\nIf the team already has a canonical repository, clone into a separate empty folder and copy only reviewed working changes from the old ZIP. Do not copy an old .git directory.");
-        var branch = Input(PageContent, "Initial branch", "main");
-        PageContent.Children.Add(OperationButton("Review initialization", OperationKind.Initialize, async () => await RequestAsync(OperationKind.Initialize, branch: branch.Text)));
-        Subheading(PageContent, "Clone an existing repository");
-        Text(PageContent, "Destination: " + target + ". The selected folder must be empty. Your original project copy remains separate.", true);
-        var url = Input(PageContent, "Repository URL", "");
-        PageContent.Children.Add(OperationButton("Review clone into this empty folder", OperationKind.Clone, async () => await RequestAsync(OperationKind.Clone, remoteUrl: url.Text)));
+        PageContent.Children.Clear(); BuildCandidateOverview();
     }
     private void BuildNonGitPage()
     {
@@ -427,7 +479,12 @@ public partial class ShellWindow : Window
     private void BuildChanges()
     {
         var snapshot = model.Snapshot!;
-        Heading("Review your changes", "Staging selects contents for the next local commit. Review existing staged contents as well as new selections.");
+        Heading("Changed files", "Choose which saved file contents belong in the next version. A version is saved on this computer before you upload it.");
+        BuildGuideEntry(PageContent);
+        if (!snapshot.HasAuthorIdentity)
+            PageContent.Children.Add(SettingsRow("Set the author for your versions", "Git needs a name and email before your first save. These label your versions; they are separate from signing in.", Action("Set author details", () => Navigate("Author setup"))));
+        if (workspace!.Access.Get(snapshot.ProjectId).Level != AccessLevel.AllowChanges)
+            PageContent.Children.Add(SettingsRow("Enable saving for this session", "Choose Allow changes in Project access above. Each guided operation still asks you to review its effects.", Action("Review project access", () => { AccessSelector.Focus(); AccessSelector.IsDropDownOpen = true; })));
         var commitPanel = new StackPanel();
         var row = Row(); row.Children.Add(Action("Refresh local status", async () => await RefreshAsync())); row.Children.Add(Action("Review ignore suggestions", BuildIgnore)); row.Children.Add(Action("Preserve work with a stash", BuildStash)); row.Children.Add(Action("Write commit message", () => commitPanel.BringIntoView())); PageContent.Children.Add(row);
         var columns = Columns(2); var unstaged = FileGroup(snapshot.Files.Where(f => f.IsUnstaged).ToArray(), "Unstaged and new files", DiffKind.Worktree, OperationKind.Stage); var staged = FileGroup(snapshot.Files.Where(f => f.IsStaged).ToArray(), "Staged contents", DiffKind.Staged, OperationKind.Unstage); AddCard(columns, unstaged, 0); AddCard(columns, staged, 1); PageContent.Children.Add(columns);
@@ -439,15 +496,26 @@ public partial class ShellWindow : Window
     }
     private FrameworkElement FileGroup(FileState[] files, string title, DiffKind diffKind, OperationKind operation)
     {
-        var panel = new StackPanel(); Subheading(panel, title); var list = new ListBox { Height = 235, SelectionMode = SelectionMode.Extended };
-        foreach (var file in files) list.Items.Add(new ListBoxItem { Content = FileDescription(file), Tag = file, Padding = new(8), ToolTip = "Git index code: " + file.IndexStatus + "; working-file code: " + file.WorktreeStatus + ". " + (file.OriginalPath is null ? "" : "Original path: " + file.OriginalPath) });
+        var panel = new StackPanel(); Subheading(panel, operation == OperationKind.Stage ? "Choose files for this version" : "Already chosen for the version");
+        Text(panel, operation == OperationKind.Stage ? "Selected files are staged before saving the version." : "These staged contents are already included. Review them too.", true, 12);
+        var list = new ListBox { Height = files.Length == 0 ? 60 : 180, SelectionMode = SelectionMode.Extended };
+        ScrollViewer.SetHorizontalScrollBarVisibility(list, ScrollBarVisibility.Disabled);
+        foreach (var file in files)
+        {
+            var item = new ListBoxItem { Tag = file, Padding = new(8) };
+            var choice = new CheckBox { Content = new TextBlock { Text = FileDescription(file), TextWrapping = TextWrapping.Wrap }, HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Top };
+            AutomationProperties.SetName(choice, FileDescription(file));
+            choice.SetBinding(CheckBox.IsCheckedProperty, new Binding(nameof(ListBoxItem.IsSelected)) { Source = item, Mode = BindingMode.TwoWay });
+            item.Content = choice; list.Items.Add(item);
+        }
         AutomationProperties.SetName(list, title); panel.Children.Add(list);
         if (files.Length == 0) Text(panel, "No contents in this group.", true);
-        var diff = Mono("Select a file to inspect its diff. New untracked files are shown as file contents where available.", files.Length == 0 ? 100 : 180);
+        var diff = Mono("Choose a file to review what changed. New files show their saved contents where available.", 180);
+        var details = new Expander { Header = "Review file contents", Content = diff };
         list.SelectionChanged += async (_, _) =>
         {
             if (list.SelectedItem is not ListBoxItem { Tag: FileState file }) return;
-            try { var result = await workspace!.DiffAsync(model.Snapshot!.ProjectId, new(diffKind, file.Path)); diff.Text = result.Text + (result.Truncated ? "\n[Diff truncated]" : "") + (result.Problem is null ? "" : "\n" + result.Problem); }
+            try { var result = await workspace!.DiffAsync(model.Snapshot!.ProjectId, new(diffKind, file.Path)); diff.Text = result.Text + (result.Truncated ? "\n[Diff truncated]" : "") + (result.Problem is null ? "" : "\n" + result.Problem); details.IsExpanded = true; }
             catch (Exception e) { diff.Text = e.Message; }
         };
         panel.Children.Add(OperationButton(operation == OperationKind.Stage ? "Review staging selected files" : "Review unstaging selected files", operation, async () =>
@@ -456,7 +524,7 @@ public partial class ShellWindow : Window
             if (paths.Length == 0) { Banner("Select one or more exact files first."); return; }
             await RequestAsync(operation, paths: paths);
         }));
-        panel.Children.Add(diff);
+        panel.Children.Add(details);
         return panel;
     }
     private async void BuildIgnore()
@@ -778,7 +846,8 @@ public partial class ShellWindow : Window
     }
     private void BuildLearn(string? initial = null)
     {
-        Heading("Learn Git, one decision at a time", "Start with the daily journey: edit a file, select its contents, save a version locally, then upload when ready. These lessons work offline.");
+        Heading("Learn", "Start with what Git remembers, then try saving one version. These explanations work offline.");
+        BuildGuideEntry(PageContent);
         if (learning is null) { AddCard(PageContent, setupError ?? "The local learning content is missing."); return; }
         var lessonPanel = new StackPanel(); PageContent.Children.Add(lessonPanel);
         var finder = new StackPanel();
@@ -786,7 +855,7 @@ public partial class ShellWindow : Window
         PageContent.Children.Add(new Expander { Header = "Find another lesson or command", Content = finder });
         void Fill() => list.ItemsSource = learning.Search(search.Text).ToArray(); Fill(); search.TextChanged += (_, _) => Fill();
         list.SelectionChanged += (_, _) => { if (list.SelectedItem is LearningEntry entry) { RenderLesson(lessonPanel, entry); lessonPanel.BringIntoView(); } };
-        var selected = initial is null ? learning.Find("journey") : learning.Find(initial); if (selected is not null) { list.SelectedItem = selected; RenderLesson(lessonPanel, selected); }
+        var selected = initial is null ? learning.Find("basics") : learning.Find(initial); if (selected is not null) { list.SelectedItem = selected; RenderLesson(lessonPanel, selected); }
         PageContent.Children.Add(Action("Create a separate practice folder", async () =>
         {
             var root = Path.Combine(Path.GetTempPath(), "GitCompass-Practice", DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N")[..6]); Directory.CreateDirectory(root); File.WriteAllText(Path.Combine(root, "practice.txt"), "A disposable learning project.\n"); await OpenProjectAsync(root);
@@ -804,27 +873,62 @@ public partial class ShellWindow : Window
     private void ShowLesson(string id) { reviewing = false; model.Page = "Learn"; SelectNavigation("Learn"); PageContent.Children.Clear(); BuildLearn(id); }
     private static void RenderLesson(Panel panel, LearningEntry entry)
     {
-        panel.Children.Clear(); Subheading(panel, entry.Title); Text(panel, entry.Purpose); Text(panel, "Before you start: " + entry.Prerequisites, true); AddCard(panel, "What changes: " + entry.Effects + "\nWhen to pause: " + entry.WhenToPause); panel.Children.Add(Mono(entry.Example, 115)); Text(panel, "Expected outcome: " + entry.Outcome, true); Text(panel, "Practice: " + entry.Practice, true);
+        panel.Children.Clear(); Subheading(panel, entry.Title); Text(panel, entry.Purpose); Text(panel, "Before you start: " + entry.Prerequisites, true); AddCard(panel, "What changes: " + entry.Effects + "\nWhen to pause: " + entry.WhenToPause);
+        if (entry.Id == "basics") Text(panel, entry.Example); else panel.Children.Add(Mono(entry.Example, 115));
+        Text(panel, "Expected outcome: " + entry.Outcome, true); Text(panel, "Practice: " + entry.Practice, true);
     }
     private void BuildSettings()
     {
         Heading("Settings", "GitCompass " + (typeof(ShellWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1.0") + " • Local preferences, appearance, connections, and opt-in team checks.");
         if (setupError is not null) AddCard(PageContent, setupError);
+        if (workspace is null)
+        {
+            var prerequisite = new StackPanel();
+            Subheading(prerequisite, "Install Git to remember project versions");
+            Text(prerequisite, "Git is the local tool GitCompass uses to save version history. You do not need a GitHub account to save versions on this computer. After installing Git for Windows, return here and check again.", true);
+            prerequisite.Children.Add(Action("Get Git for Windows", () => OpenLink("https://git-scm.com/downloads/win")));
+            prerequisite.Children.Add(Action("Check installation and continue", async () =>
+            {
+                if (model.Busy) return;
+                setupError = null; await InitializeAsync();
+                if (workspace is null) { Navigate("Settings"); return; }
+                if (pendingProjectFolder is { } selected) { pendingProjectFolder = null; await OpenProjectAsync(selected); }
+                else Navigate("Overview");
+            }, true));
+            AddCard(PageContent, prerequisite);
+        }
         if (damagedSettings is not null) PageContent.Children.Add(Action("Preserve damaged settings and use reviewed defaults", () =>
         {
             var backup = damagedSettings + ".preserved-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"); File.Copy(damagedSettings, backup, overwrite: false); damagedSettings = null; setupError = null; Banner("Damaged settings copied to a separate recovery file. Review preferences before saving defaults.");
         }));
-        var theme = new ComboBox { ItemsSource = new[] { "Light", "Dark", "System" }, SelectedItem = settings.Theme, Width = 200, HorizontalAlignment = HorizontalAlignment.Left }; Text(PageContent, "Appearance"); PageContent.Children.Add(theme); theme.SelectionChanged += (_, _) => ApplyTheme(theme.SelectedItem?.ToString() ?? "Light");
+        var theme = new ComboBox { ItemsSource = new[] { "System", "Light", "Dark" }, SelectedItem = settings.Theme, Width = 170, HorizontalAlignment = HorizontalAlignment.Left };
+        PageContent.Children.Add(SettingsRow("Appearance", "Follow Windows, or choose a light or dark appearance. Your choice saves automatically.", theme));
+        theme.SelectionChanged += async (_, _) =>
+        {
+            var choice = theme.SelectedItem?.ToString() ?? "System";
+            ApplyTheme(choice);
+            settings = settings with { Theme = choice };
+            if (damagedSettings is not null) { Banner("Appearance is previewed. Preserve the damaged settings file before saving preferences."); return; }
+            try { await store.SaveSettingsAsync(settings); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            { Banner("Your appearance changed, but could not be saved for next time. " + error.Message); }
+        };
         AutomationProperties.SetName(theme, "Appearance theme");
         Subheading(PageContent, "Check for team updates");
-        var interval = Input(PageContent, "Remote check interval in minutes (1–1440)", settings.FetchIntervalMinutes.ToString());
-        var canMonitor = model.Snapshot?.Project.Kind is RepositoryKind.WorkingTree or RepositoryKind.LinkedWorktree;
-        var monitoring = new CheckBox { Content = "Enable periodic remote checks for the current project in this session", IsChecked = canMonitor && model.Snapshot?.Project.MonitoringEnabled == true, IsEnabled = canMonitor, ToolTip = canMonitor ? "Requires permitted access and a configured Git remote." : "Select a working Git repository before enabling remote checks." }; PageContent.Children.Add(monitoring);
+        var interval = new TextBox { Text = settings.FetchIntervalMinutes.ToString(), Width = 100, MinHeight = 36 };
+        AutomationProperties.SetName(interval, "Remote check interval in minutes (1–1440)");
+        PageContent.Children.Add(SettingsRow("Check interval", "Minutes between automatic checks, from 1 to 1440. Checks require an enabled team connection.", interval));
+        var canMonitor = model.Snapshot?.Project.Kind is RepositoryKind.WorkingTree or RepositoryKind.LinkedWorktree && model.Snapshot.HasRemotes && model.Snapshot.Upstream is not null;
+        var monitoring = new CheckBox { Content = "Enabled", IsChecked = canMonitor && model.Snapshot?.Project.MonitoringEnabled == true, IsEnabled = canMonitor, ToolTip = canMonitor ? "Requires Monitor only or Allow changes." : "Select a project with a configured team connection first." };
+        AutomationProperties.SetName(monitoring, "Enable periodic remote checks for the current project in this session");
+        PageContent.Children.Add(SettingsRow("Automatic team checks", "Check the team's saved history during this session. These checks never apply updates to your files.", monitoring));
         ToolTipService.SetShowOnDisabled(monitoring, true);
-        Text(PageContent, "Monitoring requires Monitor only or Allow changes. It fetches scoped remote metadata, backs off after failures, and never updates files automatically. A full exit stops checks.", true);
-        var mute = new CheckBox { Content = "Mute team-update notifications", IsChecked = settings.MuteMonitoringNotifications }; PageContent.Children.Add(mute);
-        Text(PageContent, "Muted notifications and quiet hours still allow opted-in checks. Status, failures, and operation output remain available.", true);
-        var quietHours = new CheckBox { Content = "Use quiet hours for team-update notifications", IsChecked = settings.QuietHoursStart.HasValue }; PageContent.Children.Add(quietHours);
+        var mute = new CheckBox { Content = "Muted", IsChecked = settings.MuteMonitoringNotifications };
+        AutomationProperties.SetName(mute, "Mute team-update notifications");
+        PageContent.Children.Add(SettingsRow("Team-update notifications", "Mute update notices while permitted checks continue. Problems and operation results stay visible.", mute));
+        var quietHours = new CheckBox { Content = "Enabled", IsChecked = settings.QuietHoursStart.HasValue };
+        AutomationProperties.SetName(quietHours, "Use quiet hours for team-update notifications");
+        PageContent.Children.Add(SettingsRow("Quiet hours", "Pause team-update notices during these local hours. Overnight periods are supported.", quietHours));
         var quietRow = Row(); var quietStartPanel = new StackPanel { Width = 190, Margin = new(0, 0, 18, 0) }; var quietEndPanel = new StackPanel { Width = 190 }; quietRow.Children.Add(quietStartPanel); quietRow.Children.Add(quietEndPanel);
         var quietStart = Input(quietStartPanel, "Start hour (0–23, local time)", (settings.QuietHoursStart ?? 22).ToString()); var quietEnd = Input(quietEndPanel, "End hour (0–23, local time)", (settings.QuietHoursEnd ?? 8).ToString()); PageContent.Children.Add(quietRow);
         void SetQuietInputs() => quietRow.IsEnabled = quietHours.IsChecked == true; quietHours.Checked += (_, _) => SetQuietInputs(); quietHours.Unchecked += (_, _) => SetQuietInputs(); SetQuietInputs();
@@ -849,28 +953,37 @@ public partial class ShellWindow : Window
             await store.SaveSettingsAsync(settings);
             if (scheduler is not null) await scheduler.DisposeAsync(); StartScheduler();
             if (model.Snapshot is not null && workspace is not null) { if (monitoring.IsChecked == true) workspace.Access.Authorize(model.Snapshot.ProjectId, OperationKind.Fetch); workspace.SetMonitoring(model.Snapshot.ProjectId, monitoring.IsChecked == true); model.Snapshot = await workspace.RefreshAsync(model.Snapshot.ProjectId); }
-            Banner("Settings saved locally. Restart after changing the Git executable. Unrestricted access is never restored after restart.");
+            Banner("Settings saved on this computer. If Git was missing, use Check installation and continue. Changed Git paths take effect when reconnecting or restarting; project write access is never restored after restart.");
         }, true));
         PageContent.Children.Add(Action("Sign out of GitHub API", async () => { authenticationCancellation?.Cancel(); await tokens.ClearAsync(); Banner("GitHub API tokens cleared from protected local storage."); }));
         var row = Row(); row.Children.Add(Action("Git installation guidance", () => OpenLink("https://git-scm.com/download/win"))); row.Children.Add(Action("WebView2 prerequisite guidance", () => OpenLink("https://developer.microsoft.com/microsoft-edge/webview2/"))); PageContent.Children.Add(row);
     }
     private void ApplyTheme(string theme)
     {
+        appliedTheme = theme;
         var dark = theme == "Dark" || (theme == "System" && Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) is int value && value == 0);
 #pragma warning disable WPF0001 // Pinned .NET 10 Fluent theme selection; validate again when the SDK changes.
         System.Windows.Application.Current.ThemeMode = dark ? ThemeMode.Dark : ThemeMode.Light;
         ThemeMode = dark ? System.Windows.ThemeMode.Dark : System.Windows.ThemeMode.Light;
 #pragma warning restore WPF0001
-        var colors = dark ? new[] { "#121923", "#1B2533", "#E7EDF7", "#A6B4C9", "#344156", "#3C93F2", "#223955", "#F2BE67" } : new[] { "#F6F8FC", "#FFFFFF", "#17243C", "#5D6C82", "#DEE5F0", "#1769E0", "#EAF2FF", "#A96306" };
+        var accent = dark ? SystemColors.AccentColorLight1 : SystemColors.AccentColor;
+        var colors = dark ? new[] { "#202020", "#2B2B2B", "#F4F4F4", "#BDBDBD", "#454545", accent.ToString(), "#353535", "#F2BE67" } : new[] { "#F3F3F3", "#FFFFFF", "#1A1A1A", "#595959", "#E0E0E0", accent.ToString(), "#E9E9E9", "#8A4B00" };
         var names = new[] { "WindowBrush", "SurfaceBrush", "TextBrush", "MutedBrush", "BorderBrush", "AccentBrush", "TintBrush", "WarningBrush" };
         for (var i = 0; i < names.Length; i++) System.Windows.Application.Current.Resources[names[i]] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colors[i]));
-        System.Windows.Application.Current.Resources["PrimaryTextBrush"] = dark ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#17243C")) : Brushes.White;
+        static double Linear(byte channel) { var value = channel / 255d; return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4); }
+        var luminance = 0.2126 * Linear(accent.R) + 0.7152 * Linear(accent.G) + 0.0722 * Linear(accent.B);
+        System.Windows.Application.Current.Resources["PrimaryTextBrush"] = (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? Brushes.Black : Brushes.White;
         if (SystemParameters.HighContrast)
         {
             var contrast = new Brush[] { SystemColors.WindowBrush, SystemColors.WindowBrush, SystemColors.WindowTextBrush, SystemColors.GrayTextBrush, SystemColors.WindowTextBrush, SystemColors.HighlightBrush, SystemColors.ControlBrush, SystemColors.WindowTextBrush };
             for (var i = 0; i < names.Length; i++) System.Windows.Application.Current.Resources[names[i]] = contrast[i];
             System.Windows.Application.Current.Resources["PrimaryTextBrush"] = SystemColors.HighlightTextBrush;
         }
+    }
+    private void WindowsAppearanceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (closing || Dispatcher.HasShutdownStarted) return;
+        _ = Dispatcher.BeginInvoke(() => { if (!closing) ApplyTheme(appliedTheme); });
     }
     private async void AddEvent(OperationEvent ev)
     {
@@ -961,13 +1074,16 @@ public partial class ShellWindow : Window
     {
         var origin = projectId ?? model.Snapshot?.ProjectId; var projectName = origin.HasValue ? workspace?.Projects.FirstOrDefault(project => project.Id == origin)?.DisplayName : null;
         var attributedTitle = projectName is null ? title : projectName + " • " + title;
-        Banner(attributedTitle + ": " + detail); var panel = new StackPanel { Margin = new(0, 0, 0, 16) }; Text(panel, attributedTitle, false, 15, FontWeights.SemiBold); Text(panel, detail, true); panel.Children.Add(Action("Review operation output", async () => await ReviewProblemContextAsync(origin, false))); panel.Children.Add(Action("Prepare reviewed support information", async () => await ReviewProblemContextAsync(origin, true))); ProblemsPanel.Children.Insert(0, panel); while (ProblemsPanel.Children.Count > 40) ProblemsPanel.Children.RemoveAt(40);
+        Banner(attributedTitle + ": " + detail); var panel = new StackPanel { Margin = new(0, 0, 0, 16) }; Text(panel, attributedTitle, false, 15, FontWeights.SemiBold); Text(panel, detail, true);
+        if (detail.Contains("author name and email", StringComparison.OrdinalIgnoreCase)) panel.Children.Add(Action("Set author details", () => Navigate("Author setup"), true));
+        panel.Children.Add(Action("Review operation output", async () => await ReviewProblemContextAsync(origin, false))); panel.Children.Add(Action("Prepare reviewed support information", async () => await ReviewProblemContextAsync(origin, true))); ProblemsPanel.Children.Insert(0, panel); while (ProblemsPanel.Children.Count > 40) ProblemsPanel.Children.RemoveAt(40);
+        SetActivityDock(true); DockTabs.SelectedIndex = 1;
     }
     private async Task ReviewProblemContextAsync(Guid? origin, bool support)
     {
         if (origin is Guid id && model.Snapshot?.ProjectId != id && workspace?.Projects.FirstOrDefault(project => project.Id == id) is { } project) await OpenProjectAsync(project.SelectedFolder);
         if (origin.HasValue && model.Snapshot?.ProjectId != origin) { Banner("Open the problem's originating project after current activity finishes."); return; }
-        if (support) PrepareSupport(this, new RoutedEventArgs()); else DockTabs.SelectedIndex = 0;
+        if (support) PrepareSupport(this, new RoutedEventArgs()); else { SetActivityDock(true); DockTabs.SelectedIndex = 0; }
     }
     private void Banner(string text) { StatusBanner.Visibility = Visibility.Visible; BannerText.Text = text; if (OpenAffectedProjectButton is not null) OpenAffectedProjectButton.Visibility = Visibility.Collapsed; }
     private async void OpenAffectedProject(object sender, RoutedEventArgs e)
@@ -1006,6 +1122,7 @@ public partial class ShellWindow : Window
             view.HostFailure += (_, error) => Dispatcher.BeginInvoke(() => ShowProblem("Terminal renderer", error));
             try { await view.InitializeAsync(); } catch { await view.DisposeAsync(); TerminalTabs.Items.Remove(tab); sessions.RemoveAll(s => s.Session.Id == session.Id); throw; }
             DockTabs.SelectedIndex = 2;
+            SetActivityDock(true);
         });
     }
     private TerminalView? SelectedTerminal() => (TerminalTabs.SelectedItem as TabItem)?.Content as TerminalView;
@@ -1027,7 +1144,7 @@ public partial class ShellWindow : Window
         {
             if (MessageBox.Show(this, "Exit GitCompass, stop monitoring, cancel its operations, and close owned terminal sessions?", "Exit GitCompass", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) { e.Cancel = true; return; }
         }
-        e.Cancel = true; closing = true; timer.Stop(); outputTimer.Stop(); activeCancellation?.Cancel(); authenticationCancellation?.Cancel();
+        e.Cancel = true; closing = true; SystemEvents.UserPreferenceChanged -= WindowsAppearanceChanged; timer.Stop(); outputTimer.Stop(); activeCancellation?.Cancel(); authenticationCancellation?.Cancel();
         if (scheduler is not null) await scheduler.DisposeAsync();
         foreach (var entry in sessions.ToArray()) await entry.View.DisposeAsync(); http.Dispose();
         // Cleanup can finish synchronously (for example, before Git is installed).
@@ -1050,7 +1167,11 @@ public partial class ShellWindow : Window
     private static string DescribeRefs(ImmutableArray<string> refs) => string.Join(" • ", refs.Where(r => !r.StartsWith("refs/remotes/", StringComparison.Ordinal) || !r.EndsWith("/HEAD", StringComparison.Ordinal)).Select(r => r.StartsWith("HEAD -> refs/heads/", StringComparison.Ordinal) ? "Your branch: " + r[19..] : r.StartsWith("refs/heads/", StringComparison.Ordinal) ? "Local branch: " + r[11..] : r.StartsWith("refs/remotes/", StringComparison.Ordinal) ? "Fetched copy: " + r[13..] : r.StartsWith("refs/tags/", StringComparison.Ordinal) ? "Tag: " + r[10..] : r == "HEAD" ? "Current version (HEAD)" : r));
     private static string AccessText(AccessLevel level) => level switch { AccessLevel.ReadOnly => "Read-only", AccessLevel.MonitorOnly => "Monitor only", _ => "Allow changes" };
     private static string Short(string value) => value.Length <= 8 ? value : value[..8];
-    private void Heading(string title, string subtitle) { Text(PageContent, title, false, 29, FontWeights.SemiBold); Text(PageContent, subtitle, true, 15); }
+    private void Heading(string title, string subtitle)
+    {
+        PageBreadcrumb.Text = model.Snapshot is null ? "GitCompass  ›  " + PageName(model.Page) : "Projects  ›  " + model.Snapshot.Project.DisplayName + "  ›  " + PageName(model.Page);
+        Text(PageContent, title, false, 28, FontWeights.SemiBold); Text(PageContent, subtitle, true, 14);
+    }
     private static void Subheading(Panel panel, string title) => Text(panel, title, false, 18, FontWeights.SemiBold);
     private static void Text(Panel panel, string value, bool muted = false, double size = 14, FontWeight? weight = null)
     {
@@ -1068,10 +1189,16 @@ public partial class ShellWindow : Window
     }
     private static Border Card(object content)
     {
-        var border = new Border { Padding = new(18), Margin = new(0, 8, 12, 8), BorderThickness = new(1), CornerRadius = new(9) }; border.SetResourceReference(Border.BackgroundProperty, "SurfaceBrush"); border.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
+        var border = new Border { Padding = new(20, 16, 20, 16), Margin = new(0, 4, 10, 8), BorderThickness = new(1), CornerRadius = new(4) }; border.SetResourceReference(Border.BackgroundProperty, "SurfaceBrush"); border.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
         border.Child = content as UIElement ?? new TextBlock { Text = content.ToString(), TextWrapping = TextWrapping.Wrap, LineHeight = 22 }; return border;
     }
     private static void AddCard(Panel panel, object content) => panel.Children.Add(Card(content));
+    private static Border SettingsRow(string title, string description, FrameworkElement action)
+    {
+        var grid = new Grid(); grid.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) }); grid.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
+        var text = new StackPanel { Margin = new(0, 0, 18, 0) }; Text(text, title, false, 15, FontWeights.SemiBold); Text(text, description, true, 13); grid.Children.Add(text);
+        action.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(action, 1); grid.Children.Add(action); return Card(grid);
+    }
     private static void AddCard(Grid grid, object content, int column) { var card = Card(content); Grid.SetColumn(card, column); grid.Children.Add(card); }
     private static FrameworkElement Stat(string number, string label, string explanation, Action action)
     {

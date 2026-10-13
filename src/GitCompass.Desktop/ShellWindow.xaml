@@ -1,34 +1,166 @@
-<Window x:Class="GitCompass.Desktop.ShellWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="GitCompass" Width="1440" Height="960" MinWidth="960" MinHeight="640" WindowStartupLocation="CenterScreen" Background="{DynamicResource WindowBrush}" Foreground="{DynamicResource TextBrush}">
- <Grid Background="{DynamicResource WindowBrush}">
-  <Grid.ColumnDefinitions><ColumnDefinition Width="205"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-  <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0" Padding="14,20">
-   <DockPanel>
-    <StackPanel DockPanel.Dock="Top" Margin="8,0,0,24"><TextBlock Text="◈  GitCompass" FontSize="23" FontWeight="SemiBold"/><TextBlock Text="Understand your next step" Foreground="{DynamicResource MutedBrush}" Margin="0,8,0,0" FontSize="12"/></StackPanel>
-    <TextBlock DockPanel.Dock="Bottom" Text="Your project. Clear direction." FontSize="11" Foreground="{DynamicResource MutedBrush}" Margin="8,10,0,4"/>
-    <ListBox x:Name="Navigation" Background="Transparent" BorderThickness="0" SelectionChanged="NavigationChanged" AutomationProperties.Name="Main navigation">
-     <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"><Setter Property="Padding" Value="12,14"/><Setter Property="Margin" Value="0,3,0,3"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.ItemContainerStyle>
-     <ListBoxItem Content="⌂   Overview" Tag="Overview" IsSelected="True"/><ListBoxItem Content="▤   Changes" Tag="Changes"/><ListBoxItem Content="⑂   History graph" Tag="History graph"/><ListBoxItem Content="⑂   Branches" Tag="Branches"/><ListBoxItem Content="⇄   Pull requests" Tag="Pull requests"/><ListBoxItem Content="▱   Learn" Tag="Learn"/><ListBoxItem Content="⚙   Settings" Tag="Settings"/>
-    </ListBox>
-   </DockPanel>
-  </Border>
-  <Grid Grid.Column="1">
-   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*" MinHeight="160"/><RowDefinition Height="6"/><RowDefinition x:Name="DockRow" Height="220" MinHeight="80"/></Grid.RowDefinitions>
-   <Border Grid.Row="0" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,16">
-    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-     <StackPanel><WrapPanel VerticalAlignment="Center"><Grid><ComboBox x:Name="ProjectSelector" MinWidth="205" MaxWidth="300" SelectionChanged="ProjectSelected" DisplayMemberPath="DisplayName" AutomationProperties.Name="Current project"/><TextBlock x:Name="ProjectPlaceholder" Text="No project selected" IsHitTestVisible="False" Margin="10,0,24,0" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}"/></Grid><Button Content="Select folder" Click="PickFolder" Margin="10,0,18,0"/><TextBlock Text="Branch " VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}"/><TextBlock x:Name="BranchLabel" Text="No project" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,18,0"/><TextBlock Text="Access " VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}"/><ComboBox x:Name="AccessSelector" Width="150" SelectionChanged="AccessChanged" AutomationProperties.Name="Project access mode"><ComboBoxItem Content="Read-only"/><ComboBoxItem Content="Monitor only"/><ComboBoxItem Content="Allow changes"/></ComboBox></WrapPanel><TextBlock x:Name="ProjectPath" Text="Select a project folder to begin." Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,10,0,0" TextTrimming="CharacterEllipsis"/><TextBlock x:Name="AccessHelper" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,5,0,0"/></StackPanel>
-     <StackPanel Grid.Column="1" HorizontalAlignment="Right" Margin="15,0,0,0"><Button x:Name="CheckRemoteButton" Content="Check remote" Click="CheckRemote"/><TextBlock x:Name="FreshnessLabel" Text="Remote not checked" FontSize="12" Foreground="{DynamicResource MutedBrush}" Margin="0,9,8,0" HorizontalAlignment="Right"/></StackPanel>
+<Window x:Class="GitCompass.Desktop.ShellWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GitCompass" Width="1200" Height="860" MinWidth="900" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource WindowBrush}" Foreground="{DynamicResource TextBrush}">
+  <Grid Background="{DynamicResource WindowBrush}">
+    <Grid.ColumnDefinitions><ColumnDefinition Width="260" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+    <Border Padding="16,22,16,14">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+          <RowDefinition Height="*" /><RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid Margin="8,0,8,22">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+          <Image Source="/branding/GitCompass.ico" Width="30" Height="30" VerticalAlignment="Center" />
+          <StackPanel Grid.Column="1">
+            <TextBlock Text="GitCompass" FontSize="21" FontWeight="SemiBold" />
+            <TextBlock Text="Your project, step by step" Style="{StaticResource HelperText}" Margin="0,3,0,0" />
+          </StackPanel>
+        </Grid>
+        <StackPanel Grid.Row="1" Margin="0,0,0,20">
+          <Grid>
+            <TextBox x:Name="NavigationSearch" TextChanged="NavigationSearchChanged" Padding="36,8,10,8"
+                     AutomationProperties.Name="Find a page" ToolTip="Search Home, Projects, Changed files, Saved versions, Sharing, Learn or Settings" />
+            <TextBlock Text="&#xE721;" Style="{StaticResource FluentIcon}" FontSize="15" Margin="12,0,0,0" HorizontalAlignment="Left" IsHitTestVisible="False" />
+            <TextBlock Text="Find a page" Margin="36,0,10,0" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" IsHitTestVisible="False">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                  <Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=NavigationSearch}" Value=""><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+          </Grid>
+          <TextBlock x:Name="NavigationSearchSummary" Style="{StaticResource HelperText}" Margin="8,6,8,0" Visibility="Collapsed" />
+        </StackPanel>
+        <StackPanel Grid.Row="2" Margin="0,0,0,20">
+          <TextBlock Text="CURRENT PROJECT" Style="{StaticResource HelperText}" FontSize="11" FontWeight="SemiBold" Margin="8,0,0,8" />
+          <Grid>
+            <ComboBox x:Name="ProjectSelector" SelectionChanged="ProjectSelected" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Current project">
+              <ComboBox.ItemTemplate>
+                <DataTemplate><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxWidth="174" ToolTip="{Binding Folder}" /></DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock x:Name="ProjectPlaceholder" Text="Choose a project" IsHitTestVisible="False" Margin="12,0,28,0" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
+          </Grid>
+          <Button Click="PickFolder" Margin="0,8,0,0" HorizontalContentAlignment="Left" AutomationProperties.Name="Choose a project folder">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8B7;" Style="{StaticResource FluentIcon}" FontSize="16" Margin="0,0,10,0" /><TextBlock Text="Choose a project folder" VerticalAlignment="Center" /></StackPanel>
+          </Button>
+        </StackPanel>
+        <ListBox x:Name="Navigation" Grid.Row="3" Background="Transparent" BorderThickness="0"
+                 SelectionChanged="NavigationChanged" ItemContainerStyle="{StaticResource NavigationItem}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Main navigation">
+          <ListBoxItem Tag="Overview" IsSelected="True" AutomationProperties.Name="Home">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE80F;" Style="{StaticResource FluentIcon}" Width="30" /><TextBlock Text="Home" VerticalAlignment="Center" /></StackPanel>
+          </ListBoxItem>
+          <ListBoxItem Tag="Projects" AutomationProperties.Name="Projects">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8B7;" Style="{StaticResource FluentIcon}" Width="30" /><TextBlock Text="Projects" VerticalAlignment="Center" /></StackPanel>
+          </ListBoxItem>
+          <ListBoxItem Tag="Changes" AutomationProperties.Name="Changed files">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8A5;" Style="{StaticResource FluentIcon}" Width="30" /><TextBlock Text="Changed files" VerticalAlignment="Center" /></StackPanel>
+          </ListBoxItem>
+          <ListBoxItem Tag="History graph" AutomationProperties.Name="Saved versions">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE81C;" Style="{StaticResource FluentIcon}" Width="30" /><TextBlock Text="Saved versions" VerticalAlignment="Center" /></StackPanel>
+          </ListBoxItem>
+          <ListBoxItem Tag="Branches" AutomationProperties.Name="Branches">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8AB;" Style="{StaticResource FluentIcon}" Width="30" /><TextBlock Text="Branches" VerticalAlignment="Center" /></StackPanel>
+          </ListBoxItem>
+          <ListBoxItem Tag="Pull requests" AutomationProperties.Name="Sharing">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE72D;" Style="{StaticResource FluentIcon}" Width="30" /><TextBlock Text="Sharing" VerticalAlignment="Center" /></StackPanel>
+          </ListBoxItem>
+          <ListBoxItem Tag="Learn" AutomationProperties.Name="Learn">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE82D;" Style="{StaticResource FluentIcon}" Width="30" /><TextBlock Text="Learn" VerticalAlignment="Center" /></StackPanel>
+          </ListBoxItem>
+          <ListBoxItem Tag="Settings" AutomationProperties.Name="Settings">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE713;" Style="{StaticResource FluentIcon}" Width="30" /><TextBlock Text="Settings" VerticalAlignment="Center" /></StackPanel>
+          </ListBoxItem>
+        </ListBox>
+        <StackPanel Grid.Row="4" Margin="8,14,8,0">
+          <TextBlock Text="Local versions first. Share when ready." Style="{StaticResource HelperText}" />
+          <Button x:Name="ActivityToggleButton" Click="ToggleActivityDock" Margin="0,12,0,0" HorizontalContentAlignment="Left" AutomationProperties.Name="Show activity and tools">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE9D9;" Style="{StaticResource FluentIcon}" FontSize="16" Margin="0,0,10,0" /><TextBlock Text="Activity and tools" /></StackPanel>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+    <Grid Grid.Column="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" MinHeight="160" />
+        <RowDefinition Height="Auto" /><RowDefinition x:Name="DockRow" Height="0" MinHeight="0" />
+      </Grid.RowDefinitions>
+      <Border Grid.Row="0" Padding="30,20,30,16">
+        <Grid>
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+          <TextBlock x:Name="PageBreadcrumb" Text="GitCompass  /  Home" Foreground="{DynamicResource MutedBrush}" FontSize="13" Margin="0,0,0,14" />
+          <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE8AB;" Style="{StaticResource FluentIcon}" FontSize="15" Foreground="{DynamicResource MutedBrush}" Margin="0,0,8,0" />
+                <TextBlock x:Name="BranchLabel" Text="No project" FontWeight="SemiBold" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="ProjectPath" Text="Choose any project folder to begin." Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,6,20,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+              <ComboBox x:Name="AccessSelector" Width="145" SelectionChanged="AccessChanged" AutomationProperties.Name="Project access mode" Margin="0,0,10,0">
+                <ComboBoxItem Content="Read-only" /><ComboBoxItem Content="Monitor only" /><ComboBoxItem Content="Allow changes" />
+              </ComboBox>
+              <Button x:Name="CheckRemoteButton" Content="Check team updates" Click="CheckRemote" Margin="0" />
+            </StackPanel>
+          </Grid>
+          <Grid Grid.Row="2" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <TextBlock x:Name="AccessHelper" Style="{StaticResource HelperText}" Margin="0,0,16,0" />
+            <TextBlock x:Name="FreshnessLabel" Grid.Column="1" Text="Team updates not checked" Style="{StaticResource HelperText}" MaxWidth="215" TextAlignment="Right" />
+          </Grid>
+        </Grid>
+      </Border>
+      <Border x:Name="StatusBanner" Grid.Row="1" Background="{DynamicResource TintBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Margin="30,0,30,8" Padding="16,12" Visibility="Collapsed">
+        <StackPanel><TextBlock x:Name="BannerText" /><Button x:Name="OpenAffectedProjectButton" Content="Open affected project" Click="OpenAffectedProject" HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="Collapsed" /></StackPanel>
+      </Border>
+      <Border Grid.Row="2" Background="{DynamicResource WindowBrush}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,0,8">
+          <StackPanel x:Name="PageContent" Margin="30,6,30,24" MaxWidth="1060" HorizontalAlignment="Stretch" />
+        </ScrollViewer>
+      </Border>
+      <!-- Keep tools in the visual tree; opening activity expands this row. -->
+      <GridSplitter x:Name="DockSplitter" Grid.Row="3" Height="0" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrush}" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" AutomationProperties.Name="Resize activity panel" />
+      <Border x:Name="DockSurface" Grid.Row="4" ClipToBounds="True" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Background="{DynamicResource SurfaceBrush}">
+        <TabControl x:Name="DockTabs" BorderThickness="0" Margin="10,0,10,10">
+          <TabItem Header="Activity">
+            <Grid Margin="8">
+              <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+              <WrapPanel Margin="0,0,0,8">
+                <ComboBox x:Name="OutputChannel" Width="185" SelectionChanged="OutputFilterChanged" AutomationProperties.Name="Output channel" />
+                <TextBox x:Name="OutputSearch" Width="110" Margin="8,0" TextChanged="OutputFilterChanged" ToolTip="Search retained activity" AutomationProperties.Name="Search output" />
+                <ComboBox x:Name="OutputSeverity" Width="125" Margin="0,0,8,0" SelectionChanged="OutputFilterChanged" SelectedIndex="0" AutomationProperties.Name="Output state filter">
+                  <ComboBoxItem Content="All states" /><ComboBoxItem Content="Problems" /><ComboBoxItem Content="Succeeded" /><ComboBoxItem Content="In progress" />
+                </ComboBox>
+                <CheckBox x:Name="AutoScroll" Content="Auto-scroll" IsChecked="True" VerticalAlignment="Center" />
+                <CheckBox x:Name="GroupOutput" Content="Group by operation" IsChecked="True" Checked="OutputGroupingChanged" Unchecked="OutputGroupingChanged" VerticalAlignment="Center" Margin="10,0" />
+                <Button Content="Copy" Click="CopyOutput" /><Button Content="Clear view" Click="ClearOutput" /><Button Content="Prepare support view" Click="PrepareSupport" />
+              </WrapPanel>
+              <TextBox Grid.Row="1" x:Name="OutputText" Visibility="Collapsed" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas" FontSize="12" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" BorderThickness="0" AutomationProperties.Name="App-managed operation output" />
+              <ScrollViewer Grid.Row="1" x:Name="OutputGroupsScroll" VerticalScrollBarVisibility="Auto"><StackPanel x:Name="OutputGroups" /></ScrollViewer>
+            </Grid>
+          </TabItem>
+          <TabItem Header="Problems"><ScrollViewer><StackPanel x:Name="ProblemsPanel" Margin="16" /></ScrollViewer></TabItem>
+          <TabItem Header="Terminal">
+            <Grid Margin="8">
+              <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+              <WrapPanel Margin="0,0,0,8">
+                <Button x:Name="NewTerminalButton" Content="New PowerShell session" Click="NewTerminal" IsEnabled="False" />
+                <Button Content="Interrupt" Click="InterruptTerminal" /><Button Content="Copy selection" Click="CopyTerminal" /><Button Content="Paste" Click="PasteTerminal" /><Button Content="Close session" Click="CloseTerminal" />
+                <TextBlock x:Name="TerminalModeText" Text="Allow changes is required for an interactive terminal." VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
+              </WrapPanel>
+              <TabControl Grid.Row="1" x:Name="TerminalTabs" />
+            </Grid>
+          </TabItem>
+        </TabControl>
+      </Border>
     </Grid>
-   </Border>
-   <Border x:Name="StatusBanner" Grid.Row="1" Background="{DynamicResource TintBrush}" Padding="24,9" Visibility="Collapsed"><StackPanel><TextBlock x:Name="BannerText"/><Button x:Name="OpenAffectedProjectButton" Content="Open affected project" Click="OpenAffectedProject" HorizontalAlignment="Left" Margin="0,6,0,0" Visibility="Collapsed"/></StackPanel></Border>
-   <Border Grid.Row="2" Background="{DynamicResource WindowBrush}"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="PageContent" Margin="28,24,28,24"/></ScrollViewer></Border>
-   <GridSplitter Grid.Row="3" Height="6" HorizontalAlignment="Stretch" Background="{DynamicResource BorderBrush}" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" AutomationProperties.Name="Resize output dock"/>
-   <Border Grid.Row="4" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Background="{DynamicResource SurfaceBrush}">
-    <TabControl x:Name="DockTabs" BorderThickness="0" Margin="10,0,10,10">
-     <TabItem Header="Git Output"><Grid Margin="8"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><WrapPanel Margin="0,0,0,8"><ComboBox x:Name="OutputChannel" Width="190" SelectionChanged="OutputFilterChanged" AutomationProperties.Name="Output channel"/><TextBlock Text="Filter output" VerticalAlignment="Center" Margin="8,0,0,0"/><TextBox x:Name="OutputSearch" Width="110" Margin="8,0" TextChanged="OutputFilterChanged" ToolTip="Search retained output" AutomationProperties.Name="Search output"/><ComboBox x:Name="OutputSeverity" Width="115" Margin="0,0,8,0" SelectionChanged="OutputFilterChanged" SelectedIndex="0" AutomationProperties.Name="Output state filter"><ComboBoxItem Content="All states"/><ComboBoxItem Content="Problems"/><ComboBoxItem Content="Succeeded"/><ComboBoxItem Content="In progress"/></ComboBox><CheckBox x:Name="AutoScroll" Content="Auto-scroll" IsChecked="True" VerticalAlignment="Center"/><CheckBox x:Name="GroupOutput" Content="Group by operation" IsChecked="True" Checked="OutputGroupingChanged" Unchecked="OutputGroupingChanged" VerticalAlignment="Center" Margin="10,0"/><Button Content="Copy" Click="CopyOutput"/><Button Content="Clear view" Click="ClearOutput"/><Button Content="Prepare support view" Click="PrepareSupport"/></WrapPanel><TextBox Grid.Row="1" x:Name="OutputText" Visibility="Collapsed" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas" FontSize="12" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" BorderThickness="0" AutomationProperties.Name="App-managed operation output"/><ScrollViewer Grid.Row="1" x:Name="OutputGroupsScroll" VerticalScrollBarVisibility="Auto"><StackPanel x:Name="OutputGroups"/></ScrollViewer></Grid></TabItem>
-     <TabItem Header="Problems"><ScrollViewer><StackPanel x:Name="ProblemsPanel" Margin="16"/></ScrollViewer></TabItem>
-     <TabItem Header="Terminal"><Grid Margin="8"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions><WrapPanel Margin="0,0,0,8"><Button x:Name="NewTerminalButton" Content="New PowerShell session" Click="NewTerminal" IsEnabled="False"/><Button Content="Interrupt" Click="InterruptTerminal"/><Button Content="Copy selection" Click="CopyTerminal"/><Button Content="Paste" Click="PasteTerminal"/><Button Content="Close session" Click="CloseTerminal"/><TextBlock x:Name="TerminalModeText" Text="Allow changes is required for an interactive terminal." VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}"/></WrapPanel><TabControl Grid.Row="1" x:Name="TerminalTabs"/></Grid></TabItem>
-    </TabControl>
-   </Border>
   </Grid>
- </Grid>
 </Window>

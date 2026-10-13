@@ -1,5 +1,9 @@
 # GitCompass implementation and verification
 
+## 13 October 2026 beginner and Fluent source update
+
+The [beginner walkthrough and Fluent verification record](beginner-fluent-update.md) covers the latest source changes and native walkthrough checks. The portable-package evidence below belongs to the earlier inspection build; that package has not been regenerated for the new walkthrough.
+
 ## 13 October 2026 inspection update: 0.1.1
 
 The separate 0.1.1 trial adds explicit branch-history viewing in Read-only and Monitor only, truthful guidance for folders without Git, disabled terminal/remote controls where access or repository setup does not permit them, and suppression of implicit partial-clone fetch during inspection. The [inspection update record](inspection-update-0.1.1.md) contains current executed results, including **103 real-Git assertions** and **38 native UI checks**. The source checkout's `docs/package-report.md`, kept outside the portable ZIP, records the new versioned application archive and its checks.

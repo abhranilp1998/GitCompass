@@ -16,6 +16,17 @@ public sealed record AppSettings
 }
 public sealed record RecentProject(string Folder, string DisplayName, DateTimeOffset LastOpened);
 public sealed record ProjectListRecord(int SchemaVersion, RecentProject[] Projects);
+public sealed record BeginnerGuideState
+{
+    public int SchemaVersion { get; init; } = 1;
+    public bool WelcomeDismissed { get; init; }
+    public bool Active { get; init; }
+    public string? ProjectFolder { get; init; }
+    public string Intent { get; init; } = "";
+    public string? TeamCopyFolder { get; init; }
+    public string? PracticeFolder { get; init; }
+    public string? SavedCommitId { get; init; }
+}
 public sealed class AppStateException(string message, string preservedPath) : Exception(message)
 {
     public string PreservedPath { get; } = preservedPath;
@@ -29,7 +40,7 @@ public sealed class AppStateStore
     public AppStateStore(string? root = null) => Root = root ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GitCompass");
     public async Task<AppSettings> LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
-        var settings = await ReadAsync("settings.json", new AppSettings(), cancellationToken);
+        var settings = await ReadAsync("settings.json", new AppSettings(), cancellationToken).ConfigureAwait(false);
         if (!ValidSettings(settings)) throw new AppStateException("These settings or their schema are unsupported. The original file is preserved.", Path.Combine(Root, "settings.json"));
         return settings;
     }
@@ -45,20 +56,40 @@ public sealed class AppStateStore
          settings.QuietHoursStart is >= 0 and <= 23 && settings.QuietHoursEnd is >= 0 and <= 23 && settings.QuietHoursStart != settings.QuietHoursEnd);
     public async Task<IReadOnlyList<RecentProject>> LoadProjectsAsync(CancellationToken cancellationToken = default)
     {
-        var projects = await ReadAsync("repositories.json", new ProjectListRecord(1, []), cancellationToken);
+        var projects = await ReadAsync("repositories.json", new ProjectListRecord(1, []), cancellationToken).ConfigureAwait(false);
         if (projects.SchemaVersion != 1 || projects.Projects is null) throw new AppStateException("This project-list schema is unsupported. The original file is preserved.", Path.Combine(Root, "repositories.json"));
         return projects.Projects;
+    }
+    public async Task<BeginnerGuideState> LoadBeginnerGuideAsync(CancellationToken cancellationToken = default)
+    {
+        var guide = await ReadAsync("beginner-guide.json", new BeginnerGuideState(), cancellationToken).ConfigureAwait(false);
+        if (!ValidGuide(guide)) throw new AppStateException("This walkthrough record is unsupported. The original file is preserved.", Path.Combine(Root, "beginner-guide.json"));
+        return guide;
+    }
+    public Task SaveBeginnerGuideAsync(BeginnerGuideState guide, CancellationToken cancellationToken = default)
+    {
+        if (!ValidGuide(guide)) throw new ArgumentException("Unsupported walkthrough schema or project intent.");
+        return WriteAsync("beginner-guide.json", guide, cancellationToken);
+    }
+    private static bool ValidGuide(BeginnerGuideState guide) => guide.SchemaVersion == 1 && (guide.Intent is "" or "OwnFiles" or "TeamCopy") &&
+        ValidGuidePath(guide.ProjectFolder) && ValidGuidePath(guide.TeamCopyFolder) && ValidGuidePath(guide.PracticeFolder);
+    private static bool ValidGuidePath(string? path)
+    {
+        if (path is null) return true;
+        try { return Path.IsPathFullyQualified(path) && Path.GetFullPath(path).Length > 0; }
+        catch (ArgumentException) { return false; }
+        catch (NotSupportedException) { return false; }
     }
     public async Task RememberProjectAsync(string folder, string displayName, CancellationToken cancellationToken = default)
     {
         var absolute = Path.GetFullPath(folder);
-        await _writes.WaitAsync(cancellationToken);
+        await _writes.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var projects = await LoadProjectsAsync(cancellationToken);
+            var projects = await LoadProjectsAsync(cancellationToken).ConfigureAwait(false);
             var next = projects.Where(p => !Path.GetFullPath(p.Folder).Equals(absolute, StringComparison.OrdinalIgnoreCase))
                 .Prepend(new RecentProject(absolute, displayName, DateTimeOffset.UtcNow)).Take(20).ToArray();
-            await WriteCoreAsync("repositories.json", new ProjectListRecord(1, next), cancellationToken);
+            await WriteCoreAsync("repositories.json", new ProjectListRecord(1, next), cancellationToken).ConfigureAwait(false);
         }
         finally { _writes.Release(); }
     }
@@ -68,8 +99,10 @@ public sealed class AppStateStore
         if (!File.Exists(path)) return fallback;
         try
         {
-            using var file = File.OpenRead(path);
-            return await JsonSerializer.DeserializeAsync<T>(file, JsonOptions, token) ?? throw new JsonException();
+            // Readers keep their snapshot while an atomic save replaces the pathname on Windows.
+            using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete,
+                4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            return await JsonSerializer.DeserializeAsync<T>(file, JsonOptions, token).ConfigureAwait(false) ?? throw new JsonException();
         }
         catch (JsonException)
         {
@@ -79,8 +112,9 @@ public sealed class AppStateStore
     }
     private async Task WriteAsync<T>(string name, T value, CancellationToken token)
     {
-        await _writes.WaitAsync(token);
-        try { await WriteCoreAsync(name, value, token); }
+        // Storage must finish independently of a caller's UI/theme synchronization context.
+        await _writes.WaitAsync(token).ConfigureAwait(false);
+        try { await WriteCoreAsync(name, value, token).ConfigureAwait(false); }
         finally { _writes.Release(); }
     }
     private async Task WriteCoreAsync<T>(string name, T value, CancellationToken token)
@@ -90,9 +124,22 @@ public sealed class AppStateStore
         var temporary = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(value, JsonOptions), token);
-            File.Move(temporary, destination, overwrite: true);
+            await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(value, JsonOptions), token).ConfigureAwait(false);
+            for (var attempt = 0; ; attempt++)
+            {
+                token.ThrowIfCancellationRequested();
+                try { File.Move(temporary, destination, overwrite: true); break; }
+                catch (Exception error) when (attempt < 6 && WindowsReplaceContention(error) && File.Exists(temporary))
+                {
+                    // Windows can require exclusive destination access even for delete-sharing readers.
+                    // Keep the complete temporary file; never delete or rewrite the saved destination.
+                    await Task.Delay(Math.Min(20 << attempt, 160), token).ConfigureAwait(false);
+                }
+            }
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
+    private static bool WindowsReplaceContention(Exception error) => OperatingSystem.IsWindows() &&
+        (error is UnauthorizedAccessException && (error.HResult & 0xFFFF) == 5 ||
+         error is IOException && (error.HResult & 0xFFFF) is 32 or 33);
 }

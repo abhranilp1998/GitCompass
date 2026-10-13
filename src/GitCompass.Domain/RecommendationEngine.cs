@@ -30,12 +30,21 @@ public static class RecommendationEngine
         }
         if (s.Project.IntendedBranch is { } intended && intended != s.Branch)
             Add("branch-intent", $"Review the intended branch: {intended}", $"The current branch is {s.Branch}; you explicitly chose {intended} for this task.", OperationKind.SwitchBranch, "Switching changes checked-out files; preserve local edits first.", "branches");
+        if (!s.HasAuthorIdentity && (s.BranchState == BranchState.Unborn || s.HasLocalEdits))
+            Add("author-missing", "Set your author details", "Git needs your name and email before saving a version. These label your saved versions and are separate from GitHub sign-in.", OperationKind.ConfigureIdentity, "Sets your reviewed author details for new versions in this project only. Existing history and global settings stay unchanged.", "commit", "Enter the name and email you want recorded with your saved versions.");
         if (s.BranchState == BranchState.Unborn)
             Add("first-commit", "Review files and save your first version", "This branch has no commits yet; incoming and outgoing counts are unknown.", s.Files.Any(f => f.IsStaged) ? OperationKind.Commit : OperationKind.Stage, "A commit records the whole reviewed index locally.", "commit");
         else if (s.HasLocalEdits)
             Add("preserve-work", "Review and save your changed files", $"{s.Files.Length} changed paths are separate from committed history.", s.Files.Any(f => f.IsStaged) ? OperationKind.Commit : OperationKind.Stage, "Stage selected contents, then record a local commit. An explained stash is another option.", "stage", "Save editor buffers and review both already staged and unstaged files.");
+        // Older callers may supply a known push mapping without a remote-name inventory.
+        var hasRemoteConnection = s.HasRemotes || s.Push is { Remote.Length: > 0 } && s.Push.Remote != ".";
         if (s.HeadId != null && s.Upstream == null)
-            Add("no-upstream", "Choose where this branch connects", "No upstream is configured. The app cannot assume origin or a branch name.", OperationKind.ConfigureRemote, "Sets the reviewed remote/tracking destination after an explicit choice.", "remote");
+        {
+            if (hasRemoteConnection || goal is UserGoal.UploadWork or UserGoal.GetLatest or UserGoal.PreparePullRequest)
+                Add("no-upstream", "Choose where this project connects", "This branch has no online connection for sharing or team updates. Choose the repository and branch explicitly.", OperationKind.ConfigureRemote, "Sets the reviewed remote/tracking destination after an explicit choice. It does not upload or download versions.", "remote");
+            else
+                Add("local-only", "Your versions are saved on this computer", "This project has no online connection. You can keep saving and reviewing local versions; online sharing is optional.", null, "Your saved history stays available in this project folder. Choose Upload my work when you want to set up sharing.", "commit");
+        }
         else if (s.HeadId != null && s.UpstreamId == null)
             Add("upstream-missing", "Check the missing upstream", "The configured upstream has no readable fetched commit; comparison is unknown.", OperationKind.Fetch, "Checks only approved remote-tracking refs. It does not edit project files.", "fetch");
         else if (s.Ahead > 0 && s.Behind > 0)
@@ -47,7 +56,7 @@ public static class RecommendationEngine
         else if (s.Ahead == 0 && s.Behind == 0)
             Add("known-aligned", "No known commit synchronization needed", "Your branch matches the fetched upstream. This comparison is cached until another permitted check.", null, "Local changed files and unsaved editor work remain separate.", "status");
         if (s.IsShallow) Add("shallow", "History is limited", "This repository is shallow; relationships may omit earlier ancestors.", null, "Treat comparisons as limited evidence.", "history");
-        if (s.Remote.State != RemoteCheckState.Succeeded || s.Remote.LastSuccessfulCheck == null || DateTimeOffset.UtcNow - s.Remote.LastSuccessfulCheck > TimeSpan.FromMinutes(10))
+        if (hasRemoteConnection && (s.Remote.State != RemoteCheckState.Succeeded || s.Remote.LastSuccessfulCheck == null || DateTimeOffset.UtcNow - s.Remote.LastSuccessfulCheck > TimeSpan.FromMinutes(10)))
             Add("remote-stale", "Check the remote when ready", s.Remote.Error ?? "The displayed remote history may be older than the server.", OperationKind.Fetch, "Downloads objects and updates permitted remote-tracking refs; does not integrate or upload.", "fetch", "Choose Monitor only or Allow changes and trust the repository configuration.");
         if (goal == UserGoal.StartTask && s.HeadId != null && s.BranchState == BranchState.Attached)
             Add("start-task", "Choose a reviewed base and task branch", s.Project.IntendedBranch == null ? "No intended task branch is set. Choose it explicitly; the app cannot infer one." : $"You chose {s.Project.IntendedBranch} for this task. Review its base and current relationship.", OperationKind.CreateBranch, "Creates a branch at the explicitly selected commit. Switching remains a separate action.", "branches", "Resolve earlier preservation, tracking and incoming-history prerequisites, then choose a branch name and exact base.");

@@ -138,6 +138,18 @@
   ],
   "Entries": [
     {
+      "Id": "basics",
+      "Title": "Start here: files, saved versions, and online sharing",
+      "Category": "Getting started",
+      "Purpose": "Your project is a folder of files. Git remembers versions of selected files on this computer, so you can see how your work changed. GitHub can host and share those versions online; it is optional for local work.",
+      "Prerequisites": "No Git or GitHub knowledge is needed. Choose your own project or use a separate practice folder.",
+      "Effects": "Reading this lesson changes nothing. Saving a file in your editor changes that file. Saving a version with Git records selected contents locally. Uploading sends saved versions to a reviewed destination.",
+      "WhenToPause": "Pause when you do not recognize the project, the selected files, or the upload destination. The walkthrough explains each change before asking you to review it.",
+      "Example": "Edit and save a file → Choose files for the version → Describe the change → Review and save locally → Share online when ready",
+      "Outcome": "You can explain the difference between a changed file, a version saved on this computer, and a version uploaded for others.",
+      "Practice": "Start the walkthrough and choose Practice with a sample project. Make one small change and save one local version. No account or upload is required."
+    },
+    {
       "Id": "journey",
       "Title": "From a changed file to an uploaded version",
       "Category": "Daily workflow",

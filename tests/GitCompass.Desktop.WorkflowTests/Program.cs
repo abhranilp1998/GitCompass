@@ -17,13 +17,23 @@ internal static class Program
     private static readonly string Fixture = Path.Combine(Path.GetFullPath(".artifacts"), "desktop-workflow", Guid.NewGuid().ToString("N"));
 
     [STAThread]
-    public static int Main()
+    public static int Main(string[] args)
     {
         var app = new App { IsTestHost = true }; app.InitializeComponent(); app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         app.DispatcherUnhandledException += (_, args) => { Console.Error.WriteLine(args.Exception); _exitCode = 1; args.Handled = true; Dispatcher.CurrentDispatcher.BeginInvokeShutdown(DispatcherPriority.Background); };
         Dispatcher.CurrentDispatcher.BeginInvoke(async () =>
         {
-            try { await ExerciseAsync(); }
+            try
+            {
+                if (args.Contains("--appearance-only"))
+                {
+                    Directory.CreateDirectory(Fixture);
+                    _window = new ShellWindow(Path.Combine(Fixture, "state")) { WindowStartupLocation = WindowStartupLocation.Manual, Left = -10000, Top = -10000, ShowActivated = false, ShowInTaskbar = false };
+                    _window.Show(); await _window.InitializeAsync();
+                    await BeginnerWorkflowChecks.RunAppearanceOnlyAsync(_window, Check);
+                }
+                else await ExerciseAsync();
+            }
             catch (Exception error) { _exitCode = 1; Console.Error.WriteLine(error); }
             finally { _window?.Close(); Console.WriteLine($"Desktop workflow: {_passed} checks passed. Fixture: {Fixture}"); Dispatcher.CurrentDispatcher.BeginInvokeShutdown(DispatcherPriority.Background); }
         });
@@ -78,6 +88,7 @@ internal static class Program
         ((ComboBox)_window.FindName("AccessSelector")).SelectedIndex = (int)AccessLevel.ReadOnly;
         await Until(() => workspace.Access.Get(project.Id).Level == AccessLevel.ReadOnly);
         Check(workspace.Access.Get(project.Id).Level == AccessLevel.ReadOnly, "native selector locks back after local workflow");
+        await BeginnerWorkflowChecks.RunAsync(_window, Path.Combine(Path.GetFullPath(".artifacts"), "native-beginner", Guid.NewGuid().ToString("N")), Check);
     }
 
     private static async Task Until(Func<bool> condition)

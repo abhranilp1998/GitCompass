@@ -1,5 +1,7 @@
 # Proposed beginner walkthrough
 
+The [implementation and verification record](beginner-fluent-update.md) describes the current source update and the remaining limits of the proposal below.
+
 13 October 2026. This proposal follows the current-source [beginner experience review](F:/Dev/Projects/GitCompass/docs/beginner-experience-review-2026-10-13.md). The audience has no Git or GitHub knowledge. The user clarified that the whole application should be beginner friendly and feel like the **Windows 11 Settings app**, with modern Fluent styling, System/Light/Dark themes, and a walkthrough for newcomers. Five alternative designs were not requested; the five scenario routes below are coverage cases for one consistent experience. WPF is acceptable, and a framework change is optional rather than a requirement. Touch-specific optimization is not a confirmed requirement.
 
 ## Approach

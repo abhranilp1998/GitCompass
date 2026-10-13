@@ -65,6 +65,13 @@ internal sealed partial class GitBackend(string executable) : IGitBackend
         var statusResult = await Read(project.RootPath, cancellation, "status", "--porcelain=v2", "--branch", "-z", "--untracked-files=all", "--ignore-submodules=none");
         if (statusResult.ExitCode != 0) throw new InvalidOperationException(Redact(statusResult.Error, project));
         var status = PorcelainV2Parser.Parse(statusResult.Output);
+        var authorNameTask = Config(project.RootPath, "user.name", cancellation);
+        var authorEmailTask = Config(project.RootPath, "user.email", cancellation);
+        var remoteNamesTask = Read(project.RootPath, cancellation, "remote");
+        await Task.WhenAll(authorNameTask, authorEmailTask, remoteNamesTask);
+        var remoteNamesResult = await remoteNamesTask;
+        if (remoteNamesResult.ExitCode != 0) throw new InvalidOperationException(Redact(remoteNamesResult.Error, project));
+        var remoteNames = remoteNamesResult.Output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToImmutableArray();
         var gitDir = await Value(project.RootPath, cancellation, "rev-parse", "--absolute-git-dir") ?? project.CommonGitDirectory;
         var op = DetectOperation(gitDir);
         var shallow = await Value(project.RootPath, cancellation, "rev-parse", "--is-shallow-repository") == "true";
@@ -76,13 +83,18 @@ internal sealed partial class GitBackend(string executable) : IGitBackend
             var pieces = counts?.Split(['\t', ' '], StringSplitOptions.RemoveEmptyEntries);
             if (pieces?.Length == 2 && int.TryParse(pieces[0], out var a) && int.TryParse(pieces[1], out var b)) { ahead = a; behind = b; }
         }
-        var push = status.Branch == null ? null : await ResolvePush(project, status.Branch, cancellation);
+        var push = status.Branch == null ? null : await ResolvePush(project, status.Branch, remoteNames, cancellation);
         if (push?.Problem != null) problems.Add(push.Problem);
         var superproject = await Value(project.RootPath, cancellation, "rev-parse", "--show-superproject-working-tree");
         if (!string.IsNullOrEmpty(superproject)) problems.Add("This folder is a submodule. Guided branch/integration management needs a separate parent-project review.");
         if (status.Files.Any(f => f.Submodule != "N...")) problems.Add("Submodule changes are shown separately; guided staging of submodule paths requires developer review.");
         var fingerprint = await Fingerprint(project, statusResult.Output, cancellation);
-        return new(project.Id, generation, DateTimeOffset.UtcNow, project, status.HeadId, status.Branch, status.BranchState, status.Upstream, upstreamId, push, status.Files, op, ahead, behind, shallow, remote, fingerprint, version, problems.ToImmutable());
+        return new(project.Id, generation, DateTimeOffset.UtcNow, project, status.HeadId, status.Branch, status.BranchState, status.Upstream, upstreamId, push, status.Files, op, ahead, behind, shallow, remote, fingerprint, version, problems.ToImmutable())
+        {
+            AuthorName = await authorNameTask,
+            AuthorEmail = await authorEmailTask,
+            RemoteNames = remoteNames
+        };
     }
     public Task<HistoryPage> HistoryAsync(RepositorySnapshot s, int skip, int take, CancellationToken cancellation) => ReadHistory(s, s.HeadId, s.UpstreamId, skip, take, false, cancellation);
     public async Task<HistoryPage> HistoryAsync(RepositorySnapshot s, HistoryRequest request, CancellationToken cancellation)
@@ -182,14 +194,14 @@ internal sealed partial class GitBackend(string executable) : IGitBackend
         if (id == null || !ObjectId(id)) throw new InvalidOperationException("Select an exact commit object ID.");
         return await ResolveCommit(root, id, cancellation) ?? throw new InvalidOperationException("The reviewed commit is unavailable.");
     }
-    private async Task<PushDestination?> ResolvePush(ProjectRegistration project, string branch, CancellationToken cancellation)
+    private async Task<PushDestination?> ResolvePush(ProjectRegistration project, string branch, ImmutableArray<string> remoteNames, CancellationToken cancellation)
     {
         var root = project.RootPath;
         var remote = await Config(root, $"branch.{branch}.pushRemote", cancellation) ?? await Config(root, "remote.pushDefault", cancellation) ?? await Config(root, $"branch.{branch}.remote", cancellation);
         if (remote == null)
         {
-            var names = (await Value(root, cancellation, "remote"))?.Split('\n', StringSplitOptions.RemoveEmptyEntries) ?? [];
-            if (names.Length == 1) remote = names[0];
+            if (remoteNames.Length == 0) return null;
+            if (remoteNames.Length == 1) remote = remoteNames[0];
             else return new("", "", "refs/heads/" + branch, "", "Push destination is ambiguous. Select one explicit remote and branch.");
         }
         if (remote == ".") return new(remote, root, "refs/heads/" + branch, "", "A local-dot upstream needs an explicit network/publication destination.");
@@ -223,7 +235,12 @@ internal sealed partial class GitBackend(string executable) : IGitBackend
         if (destination != null && !destination.StartsWith("refs/heads/")) problem = "Guided push destinations must be branch refs.";
         return new(remote, urls[0], source, destination ?? "", problem);
     }
-    private async Task<string?> Config(string root, string key, CancellationToken cancellation) => (await Values(root, key, cancellation)).LastOrDefault();
+    private async Task<string?> Config(string root, string key, CancellationToken cancellation)
+    {
+        // Preserve an explicit empty override; removing empty values could incorrectly revive a global setting.
+        var result = await Read(root, cancellation, "config", "--null", "--get", key);
+        return result.ExitCode == 0 ? result.Output.TrimEnd('\0') : null;
+    }
     private async Task<string[]> Values(string root, string key, CancellationToken cancellation)
     {
         var r = await Read(root, cancellation, "config", "--null", "--get-all", key); return r.ExitCode == 0 ? r.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries) : [];

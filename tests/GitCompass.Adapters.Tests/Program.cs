@@ -23,6 +23,30 @@ await Throws<ArgumentException>(() => store.SaveSettingsAsync(quiet with { Quiet
 Check(true, "invalid equal quiet hours are rejected before persistence");
 await store.RememberProjectAsync(root, "Sandbox"); await store.RememberProjectAsync(root, "Sandbox updated");
 Check((await store.LoadProjectsAsync()).Count == 1, "recent projects deduplicate canonical folders");
+var atomicStart = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+var atomicReads = 0;
+var atomicReaders = Enumerable.Range(0, 8).Select(_ => Task.Run(async () =>
+{
+    await atomicStart.Task;
+    for (var iteration = 0; iteration < 50; iteration++)
+    {
+        var observed = await store.LoadSettingsAsync();
+        if (observed.SchemaVersion != 1 || observed.Theme is not ("System" or "Light" or "Dark") || observed.FetchIntervalMinutes is < 1 or > 1440)
+            throw new InvalidOperationException("A concurrent reader observed incomplete or invalid settings.");
+        Interlocked.Increment(ref atomicReads);
+        await Task.Delay(1);
+    }
+})).ToArray();
+var atomicWriter = Task.Run(async () =>
+{
+    await atomicStart.Task;
+    for (var iteration = 0; iteration < 40; iteration++)
+        await store.SaveSettingsAsync(new AppSettings { Theme = iteration % 2 == 0 ? "Light" : "Dark", FetchIntervalMinutes = 3 });
+});
+atomicStart.SetResult();
+await Task.WhenAll(atomicReaders.Append(atomicWriter)).WaitAsync(TimeSpan.FromSeconds(30));
+Check(atomicReads == 400 && (await store.LoadSettingsAsync()).Theme == "Dark" && !Directory.EnumerateFiles(root, "settings.json.*.tmp").Any(),
+    "400 concurrent settings reads observe complete snapshots during 40 atomic saves and retain the exact final theme");
 await File.WriteAllTextAsync(Path.Combine(root, "settings.json"), "{ broken");
 var corrupt = await Throws<AppStateException>(async () => await store.LoadSettingsAsync());
 Check(File.ReadAllText(corrupt.PreservedPath) == "{ broken", "corrupt settings are preserved and reported");

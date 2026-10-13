@@ -8,4 +8,4 @@ Run after the Release build:
 & ./.tools/dotnet/dotnet.exe tests/GitCompass.Domain.Tests/bin/Release/net10.0/GitCompass.Domain.Tests.dll
 ```
 
-The current suite contains 64 assertions. It has no Git process, network or UI dependency; real repository effects are covered separately by the Git integration executable.
+The current suite contains 73 assertions, including local-only guidance and first-save author prerequisites. It has no Git process, network or UI dependency; real repository effects are covered separately by the Git integration executable.

@@ -2,6 +2,8 @@
 
 A Windows desktop workspace for people learning Git. Open a project folder, see what changed, understand where work is saved, and review the next useful action.
 
+The current source includes the [Windows 11 Fluent and beginner walkthrough update](docs/beginner-fluent-update.md): System/Light/Dark themes, searchable navigation, an optional resumable guide, and explicit first-version setup. Run `powershell -ExecutionPolicy Bypass -File scripts/run.ps1 -Development` to use this source build. The existing 0.1.1 portable ZIP and exported manuals describe the earlier build; they have not been repackaged for this update.
+
 The [complete functional documentation](docs/functional-documentation.md) explains every screen and guided workflow, permissions, state changes, recovery, settings, storage, limitations and verified acceptance. It is the detailed manual; [the user guide](docs/user-guide.md) is the shorter starting path.
 
 Reading copies are available as a [printable PDF](output/pdf/GitCompass-Functional-Documentation-0.1.1.pdf) and [self-contained offline HTML](output/pdf/GitCompass-Functional-Documentation-0.1.1.html). Regenerate them with `python scripts/export-functional-documentation.py`; the manual's maintenance section lists the export dependencies and checks. The [0.1.1 inspection update](docs/inspection-update-0.1.1.md) explains branch viewing in Read-only/Monitor only, plain-folder guidance and the separate updated trial.

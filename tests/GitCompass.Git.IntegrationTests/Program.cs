@@ -7,7 +7,8 @@ using GitCompass.Domain;
 using GitCompass.Infrastructure.Git;
 
 var gitPath = args.FirstOrDefault(a => !a.StartsWith("--")) ?? @"C:\Program Files\Git\cmd\git.exe";
-var fixtureBase = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), ".artifacts", "tests"));
+// Ordinary folders must be outside the checkout so Git discovery cannot inherit this project's history.
+var fixtureBase = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "GitCompass-tests", "integration"));
 Directory.CreateDirectory(fixtureBase);
 var fixture = Path.Combine(fixtureBase, "core-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(fixture);
 Console.WriteLine("Disposable fixture: " + fixture);
@@ -125,8 +126,16 @@ workspace.Access.SetLevel(id, AccessLevel.AllowChanges);
 await Expect<AccessDeniedException>(() => workspace.PreviewAsync(new(id, OperationKind.Initialize, Branch: "main")), "Untrusted configured effects require deliberate trust");
 workspace.SetTrusted(id, true);
 await Success(id, OperationKind.Initialize, branch: "main");
+// Empty local values override any developer-wide identity so this prerequisite fixture is deterministic.
+await Git(first, "config", "--local", "user.name", ""); await Git(first, "config", "--local", "user.email", "");
+var beforeIdentityInspection = TreeHash(first);
+snapshot = await workspace.RefreshAsync(id);
+Check(!snapshot.HasAuthorIdentity && string.IsNullOrWhiteSpace(snapshot.AuthorName) && string.IsNullOrWhiteSpace(snapshot.AuthorEmail) && !snapshot.HasRemotes && snapshot.Push is null && TreeHash(first) == beforeIdentityInspection, "Missing author and absent remote are inspected without changing any repository bytes or inventing an upload error");
+Check(workspace.Plan(id).Steps[0].Code == "author-missing" && workspace.Plan(id).Steps.All(step => step.Action != OperationKind.Fetch), "Actual first-save guidance surfaces author setup before an impossible remote check");
 var identity = await workspace.PreviewAsync(new(id, OperationKind.ConfigureIdentity, AuthorName: "Fixture Author", AuthorEmail: "fixture@example.test"));
 Check((await workspace.ExecuteAsync(identity)).State == OperationState.Succeeded, "Author identity changes only reviewed local config");
+snapshot = workspace.GetSnapshot(id)!;
+Check(snapshot.HasAuthorIdentity && snapshot.AuthorName == "Fixture Author" && snapshot.AuthorEmail == "fixture@example.test" && workspace.Plan(id).Steps.All(step => step.Code != "author-missing"), "Refreshed author details complete the actual first-save prerequisite");
 await Git(first, "config", "commit.gpgSign", "false");
 await Git(first, "config", "core.autocrlf", "false");
 Write(first, ".gitattributes", "* text=auto eol=lf\n");
@@ -141,6 +150,7 @@ await Success(id, OperationKind.Stage, ["[wildcard].txt", "not-selected.txt", ".
 await Success(id, OperationKind.Commit, message: "First local version\n\nRecorded from fixture files.");
 var initial = workspace.GetSnapshot(id)!.HeadId!;
 Check(await Git(first, "rev-parse", "HEAD") == initial, "Commit result is a real recorded Git object");
+Check(workspace.Plan(id).Steps.Any(step => step.Code == "local-only") && workspace.Plan(id).Steps.All(step => step.Action is not (OperationKind.Fetch or OperationKind.ConfigureRemote)) && workspace.Plan(id, UserGoal.UploadWork).Steps.Any(step => step.Action == OperationKind.ConfigureRemote), "A real local-only saved project makes sharing optional until the user chooses upload");
 
 // Helpers are configured to leave evidence if inspection executes them.
 Write(first, ".git/forbidden-helper.sh", "#!/bin/sh\nprintf forbidden > helper-was-run\n");
@@ -173,6 +183,7 @@ workspace.Access.SetLevel(id, AccessLevel.AllowChanges); await Success(id, Opera
 
 var bare = Path.Combine(fixture, "team remote.git"); Directory.CreateDirectory(bare); await Git(bare, "init", "--bare", "--initial-branch=main");
 await Success(id, OperationKind.ConfigureRemote, remote: "team", url: bare, branch: "main", upstream: true);
+Check(workspace.GetSnapshot(id)!.HasRemotes && workspace.GetSnapshot(id)!.RemoteNames.SequenceEqual(["team"]) && workspace.Plan(id).Steps.Any(step => step.Action == OperationKind.Fetch), "Configured named remote is inspected and restores permitted team-check guidance");
 workspace.Access.SetLevel(id, AccessLevel.MonitorOnly);
 await Success(id, OperationKind.Fetch, remote: "team");
 await Expect<AccessDeniedException>(() => workspace.PreviewAsync(new(id, OperationKind.Push)), "Monitor-only push denied");

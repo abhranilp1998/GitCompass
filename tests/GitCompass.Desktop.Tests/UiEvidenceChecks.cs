@@ -137,10 +137,12 @@ internal static class UiEvidenceChecks
         Check(!advanced.IsExpanded, "technical Git and GitHub configuration starts collapsed after Git is detected");
         Capture(root, "notification-settings-dark");
         Check(Contrast("#17243C", "#3C93F2") >= 4.5 && Contrast("#5D6C82", "#F6F8FC") >= 4.5 && Contrast("#5D6C82", "#EAF2FF") >= 4.5, "normal-text primary/muted theme colors meet the reviewed 4.5-to-1 palette target");
-        var candidate = Path.Combine(root, "candidate-practice"); Directory.CreateDirectory(candidate); await File.WriteAllTextAsync(Path.Combine(candidate, "practice.txt"), "Unrecorded practice work\n");
+        // Ordinary-folder fixtures must stay outside the source repository and its ancestors.
+        var candidate = Path.Combine(Path.GetTempPath(), "GitCompass-candidate", Guid.NewGuid().ToString("N")); Directory.CreateDirectory(candidate); await File.WriteAllTextAsync(Path.Combine(candidate, "practice.txt"), "Unrecorded practice work\n");
         await window.OpenProjectAsync(candidate); window.ConfigureView("Overview", "Light"); window.UpdateLayout();
         Check(((Border)window.FindName("StatusBanner")).Visibility == Visibility.Collapsed, "changing projects clears transient failures from the previously selected project");
-        Check(!Directory.Exists(Path.Combine(candidate, ".git")) && HasButton("Review initialization"), "non-Git onboarding preserves candidate folder until a reviewed initialization");
+        Check(!Directory.Exists(Path.Combine(candidate, ".git")) && HasButton("These are my own files"), "non-Git onboarding preserves candidate folder and asks project origin before initialization");
+        Click("These are my own files"); await Until(() => HasButton("Review initialization"));
         Capture(root, "non-git-onboarding-light");
         var candidateBefore = Program.Fingerprint(candidate);
         var candidateProject = workspace.Projects.Single(p => p.RootPath == candidate);
@@ -191,7 +193,7 @@ internal static class UiEvidenceChecks
         return !(bool)model.GetType().GetProperty("Busy")!.GetValue(model)!;
     }
     private static IEnumerable<TextBox> Fields() => Descendants<TextBox>(window!);
-    private static CheckBox Checkbox(string content) => Descendants<CheckBox>(window!).First(check => check.Content?.ToString() == content);
+    private static CheckBox Checkbox(string content) => Descendants<CheckBox>(window!).First(check => check.Content?.ToString() == content || AutomationProperties.GetName(check) == content);
     private static bool HasButton(string content) => Descendants<Button>(window!).Any(button => button.Content?.ToString() == content);
     private static Button Button(string content) => Descendants<Button>(window!).First(button => button.Content?.ToString() == content);
     private static void Click(string content) => Button(content).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
