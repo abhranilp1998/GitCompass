@@ -17,6 +17,11 @@ static class Program
     }
     static void Run(string[] arguments)
     {
+        if (arguments.Contains("--liquid-only"))
+        {
+            var liquidRoot = Path.Combine(Environment.CurrentDirectory, ".artifacts", "desktop-liquid-tests", Guid.NewGuid().ToString("N"));
+            LiquidGlassChecks.Run(liquidRoot); return;
+        }
         if (arguments.Contains("--responsive-only"))
         {
             var responsiveRoot = Path.Combine(Environment.CurrentDirectory, ".artifacts", "desktop-responsive-tests", Guid.NewGuid().ToString("N"));

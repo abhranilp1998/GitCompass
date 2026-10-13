@@ -28,7 +28,7 @@ The supported minimum outer window size is now **640 × 560 logical units**. WPF
 
 ## What glass means here
 
-The implementation uses documented Windows DWM materials: **Mica** for a subtle wallpaper tint, **Acrylic** for a frosted glass background, and **Solid** for an opaque surface. This is Windows frosted glass; custom refractive Liquid Glass shaders and fluid lens animations are not included. Mica remains the default main-window material, consistent with Microsoft's guidance. Content cards retain opaque backgrounds for readable text.
+The implementation uses documented Windows DWM materials: **Mica** for a subtle wallpaper tint, **Acrylic** for a frosted glass background, and **Solid** for an opaque surface. These main-window options use Windows frosted glass. A later [experimental Liquid Glass page](liquid-glass-preview.md) adds custom refraction within its own preview; it does not replace these materials. Mica remains the default main-window material, consistent with Microsoft's guidance. Content cards retain opaque backgrounds for readable text.
 
 The native background API requires **Windows 11 22H2 / build 22621 or later**. The app retains the ordinary Windows frame, caption buttons, resizing and Snap behavior; it does not create a transparent, borderless layered window. It uses a solid fallback when Windows contrast mode or disabled transparency requires one, during a remote desktop session, on unsupported systems, or when the native API/preferences cannot be used. Acrylic also falls back during energy saver. Settings explains the effective material or fallback and retains the user's choice for later.
 

@@ -167,7 +167,7 @@ public partial class ShellWindow : Window
         if (AccessSelector is null) return;
         updating = true;
         var snapshot = model.Snapshot;
-        HeaderContext.Visibility = HeaderStatus.Visibility = snapshot is null ? Visibility.Collapsed : Visibility.Visible;
+        HeaderContext.Visibility = HeaderStatus.Visibility = snapshot is null || model.Page == "Liquid Glass preview" ? Visibility.Collapsed : Visibility.Visible;
         ProjectPlaceholder.Visibility = snapshot is null ? Visibility.Visible : Visibility.Collapsed;
         if (snapshot is null || workspace is null)
         {
@@ -310,7 +310,7 @@ public partial class ShellWindow : Window
     private void Navigate(string page) { reviewing = false; model.Page = page; SelectNavigation(page); RenderPage(); }
     private void SelectNavigation(string page)
     {
-        var category = page switch { "Walkthrough" => "Learn", "Author setup" => "Changes", _ => page };
+        var category = page switch { "Walkthrough" => "Learn", "Author setup" => "Changes", "Liquid Glass preview" => "Settings", _ => page };
         updating = true; foreach (ListBoxItem item in Navigation.Items) if (item.Tag?.ToString() == category) Navigation.SelectedItem = item; updating = false;
     }
     private static string PageName(string page) => page switch
@@ -370,6 +370,8 @@ public partial class ShellWindow : Window
         if (!ready || PageContent is null) return;
         renderGeneration++;
         PageContent.Children.Clear();
+        HeaderContext.Visibility = HeaderStatus.Visibility = model.Snapshot is null || model.Page == "Liquid Glass preview" ? Visibility.Collapsed : Visibility.Visible;
+        if (model.Page == "Liquid Glass preview") { BuildLiquidGlassPreview(); return; }
         if (model.Page == "Projects") { BuildProjects(); return; }
         if (model.Page == "Walkthrough") { BuildWalkthrough(); return; }
         if (model.Page == "Author setup" && model.Snapshot is not null && workspace is not null) { BuildAuthorSetup(); return; }
@@ -940,6 +942,7 @@ public partial class ShellWindow : Window
         materialStatus.SetBinding(TextBlock.TextProperty, new Binding(nameof(WindowsBackdrop.Status)) { Source = backdrop });
         AutomationProperties.SetName(materialStatus, "Window background effect status");
         PageContent.Children.Add(materialStatus);
+        PageContent.Children.Add(SettingsRow("Try a different design", "Explore a Liquid Glass-inspired page with sample project data. Changes inside the preview only affect its appearance.", Action("Open Liquid Glass preview", () => Navigate("Liquid Glass preview"))));
         Subheading(PageContent, "Check for team updates");
         var interval = new TextBox { Text = settings.FetchIntervalMinutes.ToString(), Width = 100, MinHeight = 36 };
         AutomationProperties.SetName(interval, "Remote check interval in minutes (1–1440)");
@@ -987,7 +990,7 @@ public partial class ShellWindow : Window
     private void ApplyTheme(string theme)
     {
         appliedTheme = theme;
-        var dark = theme == "Dark" || (theme == "System" && Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) is int value && value == 0);
+        var dark = UsesDarkAppearance(theme);
 #pragma warning disable WPF0001 // Pinned .NET 10 Fluent theme selection; validate again when the SDK changes.
         System.Windows.Application.Current.ThemeMode = dark ? ThemeMode.Dark : ThemeMode.Light;
         ThemeMode = dark ? System.Windows.ThemeMode.Dark : System.Windows.ThemeMode.Light;
@@ -1006,7 +1009,9 @@ public partial class ShellWindow : Window
             System.Windows.Application.Current.Resources["PrimaryTextBrush"] = SystemColors.HighlightTextBrush;
         }
         backdrop.Apply(settings.WindowMaterial, dark);
+        if (model.Page == "Liquid Glass preview") liquidGlassPreview?.ApplyAppearance(dark);
     }
+    private static bool UsesDarkAppearance(string theme) => theme == "Dark" || (theme == "System" && Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) is int value && value == 0);
     private sealed record WindowMaterialChoice(string Key, string Label);
     private void WindowsAppearanceChanged(object sender, UserPreferenceChangedEventArgs e)
     {

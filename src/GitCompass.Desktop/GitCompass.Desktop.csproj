@@ -11,6 +11,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="../../assets/branding/GitCompass.ico" Link="branding/GitCompass.ico" LogicalName="branding/GitCompass.ico" />
+    <Resource Include="../../assets/shaders/liquid-refraction.ps" Link="shaders/liquid-refraction.ps" LogicalName="shaders/liquid-refraction.ps" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Web.WebView2" />
     <ProjectReference Include="../GitCompass.Domain/GitCompass.Domain.csproj" />

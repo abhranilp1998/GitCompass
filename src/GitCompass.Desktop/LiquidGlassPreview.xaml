@@ -1,0 +1,140 @@
+<UserControl x:Class="GitCompass.Desktop.LiquidGlassPreview"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             UseLayoutRounding="True" MaxWidth="1180" HorizontalAlignment="Stretch"
+             Foreground="{DynamicResource GlassTextBrush}" FontFamily="Segoe UI Variable, Segoe UI">
+  <UserControl.Resources>
+    <SolidColorBrush x:Key="GlassTextBrush" Color="#182744" />
+    <SolidColorBrush x:Key="GlassPageBrush" Color="#F4F7FC" />
+    <SolidColorBrush x:Key="GlassMutedBrush" Color="#394A67" />
+    <SolidColorBrush x:Key="GlassAccentBrush" Color="#244ECA" />
+    <SolidColorBrush x:Key="GlassButtonBrush" Color="#35FFFFFF" />
+    <SolidColorBrush x:Key="GlassButtonEdgeBrush" Color="#75FFFFFF" />
+    <Style x:Key="GlassFocus" TargetType="Control">
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Control"><Rectangle Stroke="{DynamicResource GlassAccentBrush}" StrokeThickness="2" RadiusX="18" RadiusY="18" Margin="-4" StrokeDashArray="2,2" /></ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="GlassButton" TargetType="Button">
+      <Setter Property="Foreground" Value="{DynamicResource GlassTextBrush}" />
+      <Setter Property="Background" Value="{DynamicResource GlassButtonBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GlassButtonEdgeBrush}" />
+      <Setter Property="BorderThickness" Value="1" /><Setter Property="Padding" Value="16,10" />
+      <Setter Property="MinHeight" Value="42" /><Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FocusVisualStyle" Value="{StaticResource GlassFocus}" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Border x:Name="Pill" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="21" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Pill" Property="BorderThickness" Value="2" /></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Pill" Property="BorderThickness" Value="2" /><Setter TargetName="Pill" Property="BorderBrush" Value="{DynamicResource GlassAccentBrush}" /></Trigger>
+          <Trigger Property="IsPressed" Value="True"><Setter TargetName="Pill" Property="Opacity" Value="0.78" /></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Pill" Property="Opacity" Value="0.5" /></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="GlassCaption" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12" /><Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource GlassMutedBrush}" /><Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+  </UserControl.Resources>
+  <Border x:Name="PreviewSurface" Background="{DynamicResource GlassPageBrush}" CornerRadius="22" Padding="20">
+  <StackPanel>
+    <Grid x:Name="IntroGrid" Margin="0,0,0,18">
+      <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+      <StackPanel x:Name="IntroText" Margin="0,0,18,0">
+        <TextBlock Text="LIQUID GLASS · MATERIAL PREVIEW" Style="{StaticResource GlassCaption}" Foreground="{DynamicResource GlassAccentBrush}" />
+        <TextBlock Text="Your project, in focus." FontSize="32" FontWeight="SemiBold" Margin="0,7,0,7" TextWrapping="Wrap" />
+        <TextBlock Text="A softer, more playful look for GitCompass. Try the controls and move your pointer over the glass." Foreground="{DynamicResource GlassMutedBrush}" TextWrapping="Wrap" MaxWidth="560" HorizontalAlignment="Left" />
+      </StackPanel>
+      <WrapPanel x:Name="AppearanceControls" Grid.Column="1" VerticalAlignment="Center">
+        <Button x:Name="LightButton" Content="Light" Style="{StaticResource GlassButton}" Margin="0,0,7,0" Click="LightClicked" AutomationProperties.Name="Light preview" />
+        <Button x:Name="DarkButton" Content="Dark" Style="{StaticResource GlassButton}" Click="DarkClicked" AutomationProperties.Name="Dark preview" />
+      </WrapPanel>
+    </Grid>
+
+    <Border x:Name="SceneFrame" CornerRadius="30" BorderThickness="1" BorderBrush="#65FFFFFF">
+      <Grid x:Name="SceneRoot" MinHeight="620">
+        <!-- Independent artwork: lenses sample only this sibling, never their own content. -->
+        <Grid x:Name="Artwork" IsHitTestVisible="False" Background="#DDE6FA">
+          <Viewbox Stretch="Fill">
+            <Canvas Width="1000" Height="800">
+              <Rectangle x:Name="SceneBase" Width="1000" Height="800">
+                <Rectangle.Fill><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#BBDDFB" Offset="0" /><GradientStop Color="#E1DDFA" Offset="0.55" /><GradientStop Color="#F8CFC4" Offset="1" /></LinearGradientBrush></Rectangle.Fill>
+              </Rectangle>
+              <Ellipse x:Name="BlueOrb" Width="860" Height="590" Canvas.Left="-310" Canvas.Top="290" Fill="#1679F5" Opacity="0.84"><Ellipse.Effect><BlurEffect Radius="45" /></Ellipse.Effect></Ellipse>
+              <Ellipse x:Name="LilacOrb" Width="650" Height="390" Canvas.Left="470" Canvas.Top="10" Fill="#986EFF" Opacity="0.88" RenderTransformOrigin="0.5,0.5"><Ellipse.RenderTransform><RotateTransform Angle="-24" /></Ellipse.RenderTransform><Ellipse.Effect><BlurEffect Radius="44" /></Ellipse.Effect></Ellipse>
+              <Ellipse x:Name="PeachOrb" Width="630" Height="520" Canvas.Left="590" Canvas.Top="390" Fill="#FFC8B3" Opacity="0.97"><Ellipse.Effect><BlurEffect Radius="35" /></Ellipse.Effect></Ellipse>
+              <Path Data="M -100,675 C 270,40 410,910 1090,340" Stroke="#B1FFFFFF" StrokeThickness="86" Opacity="0.32"><Path.Effect><BlurEffect Radius="17" /></Path.Effect></Path>
+              <Path Data="M -110,687 C 260,55 440,930 1110,330" Stroke="#EEFFFFFF" StrokeThickness="2" Opacity="0.7" />
+              <Path Data="M 650,-90 C 440,200 1110,280 890,910" Stroke="#6DFFFFFF" StrokeThickness="118" Opacity="0.32"><Path.Effect><BlurEffect Radius="23" /></Path.Effect></Path>
+              <Path Data="M 650,-90 C 440,200 1110,280 890,910" Stroke="#AAFFFFFF" StrokeThickness="2" Opacity="0.4" />
+            </Canvas>
+          </Viewbox>
+        </Grid>
+        <Grid x:Name="SceneContent" Margin="28">
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+          <Border x:Name="ToolbarLens" CornerRadius="27" Padding="7" Margin="0,0,0,24" HorizontalAlignment="Left">
+            <Grid><WrapPanel>
+              <Button x:Name="OverviewButton" Tag="Overview" Content="Overview" Style="{StaticResource GlassButton}" Click="TabClicked" AutomationProperties.Name="Overview sample" Margin="0,0,5,0" />
+              <Button x:Name="ChangesButton" Tag="Changed files" Content="Changed files" Style="{StaticResource GlassButton}" Click="TabClicked" AutomationProperties.Name="Changed files sample" Margin="0,0,5,0" />
+              <Button x:Name="VersionsButton" Tag="Saved versions" Content="Saved versions" Style="{StaticResource GlassButton}" Click="TabClicked" AutomationProperties.Name="Saved versions sample" />
+            </WrapPanel></Grid>
+          </Border>
+          <Grid x:Name="BodyGrid" Grid.Row="1">
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="3*" /><ColumnDefinition Width="2*" /></Grid.ColumnDefinitions>
+            <Border x:Name="ProjectLens" CornerRadius="30" Margin="0,0,20,0" Padding="30">
+              <Grid><StackPanel>
+                <WrapPanel Margin="0,0,0,24">
+                  <Border x:Name="SampleBadge" CornerRadius="12" Background="#4DFFFFFF" Padding="10,5" Margin="0,0,8,0"><TextBlock Text="LOCAL SAMPLE" Style="{StaticResource GlassCaption}" FontSize="10" /></Border>
+                  <TextBlock Text="A calm place to start" Foreground="{DynamicResource GlassMutedBrush}" VerticalAlignment="Center" FontSize="12" />
+                </WrapPanel>
+                <TextBlock Text="&#xE8A5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="32" Foreground="{DynamicResource GlassAccentBrush}" Margin="0,0,0,17" />
+                <TextBlock x:Name="ProjectHeading" Text="Weekend notes" FontSize="37" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock x:Name="ProjectDescription" Text="A few ideas, a little progress. Everything is saved on this computer until you choose to share." Foreground="{DynamicResource GlassMutedBrush}" TextWrapping="Wrap" FontSize="15" LineHeight="23" Margin="0,11,0,22" />
+                <StackPanel x:Name="SampleDetails">
+                  <TextBlock x:Name="DetailOne" Text="3 files changed" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,9" />
+                  <TextBlock x:Name="DetailTwo" Text="2 local versions" Foreground="{DynamicResource GlassMutedBrush}" Margin="0,0,0,9" />
+                  <TextBlock x:Name="DetailThree" Text="Ready when you are." Foreground="{DynamicResource GlassMutedBrush}" />
+                </StackPanel>
+                <Button x:Name="SampleAction" Content="Preview a saved version  →" Style="{StaticResource GlassButton}" HorizontalAlignment="Left" Margin="0,27,0,0" Click="SampleActionClicked" AutomationProperties.Name="Preview sample action" />
+              </StackPanel></Grid>
+            </Border>
+            <StackPanel x:Name="SidePanel" Grid.Column="1">
+              <Border x:Name="StatusLens" CornerRadius="26" Padding="23" Margin="0,0,0,16">
+                <Grid><StackPanel>
+                  <TextBlock Text="YOUR NEXT SMALL STEP" Style="{StaticResource GlassCaption}" FontSize="10" Margin="0,0,0,12" />
+                  <TextBlock x:Name="NextStepHeading" Text="Keep a version." FontSize="23" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock x:Name="NextStepDescription" Text="Save a checkpoint before you try something new. You can come back to it later." TextWrapping="Wrap" Foreground="{DynamicResource GlassMutedBrush}" LineHeight="21" Margin="0,9,0,17" />
+                  <Border x:Name="LocalFirstBadge" CornerRadius="16" Padding="12,7" Background="#3EFFFFFF" HorizontalAlignment="Left"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" Margin="0,0,7,0" /><TextBlock Text="Local first" FontSize="12" FontWeight="SemiBold" /></StackPanel></Border>
+                </StackPanel></Grid>
+              </Border>
+              <Border x:Name="NoteLens" CornerRadius="26" Padding="23">
+                <Grid><StackPanel>
+                  <TextBlock Text="ROOM TO EXPERIMENT" Style="{StaticResource GlassCaption}" FontSize="10" Margin="0,0,0,12" />
+                  <TextBlock Text="Try the material." FontSize="23" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock Text="Notice the backdrop through the cards, the bright rims, and the small reflections as your pointer moves." TextWrapping="Wrap" Foreground="{DynamicResource GlassMutedBrush}" LineHeight="21" Margin="0,9,0,0" />
+                </StackPanel></Grid>
+              </Border>
+            </StackPanel>
+          </Grid>
+          <Border x:Name="ControlsLens" Grid.Row="2" CornerRadius="25" Padding="18" Margin="0,22,0,0">
+            <Grid><Grid x:Name="MaterialControls">
+              <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <StackPanel x:Name="StrengthPanel" Margin="0,0,22,0">
+                <TextBlock Text="Glass strength" FontSize="12" FontWeight="SemiBold" />
+                <Slider x:Name="StrengthSlider" Minimum="0" Maximum="100" Value="65" TickFrequency="5" SmallChange="5" LargeChange="20" MinWidth="160" MaxWidth="320" HorizontalAlignment="Stretch" Margin="0,7,0,0" ValueChanged="StrengthChanged" AutomationProperties.Name="Glass strength" />
+              </StackPanel>
+              <Button x:Name="SceneButton" Grid.Column="1" Content="Change scene  ↗" Style="{StaticResource GlassButton}" VerticalAlignment="Center" Click="SceneClicked" AutomationProperties.Name="Change scene" />
+            </Grid></Grid>
+          </Border>
+        </Grid>
+      </Grid>
+    </Border>
+    <TextBlock x:Name="SampleStatus" Text="Sample data only. These controls do not open or change your project." Foreground="{DynamicResource GlassMutedBrush}" Margin="2,15,2,5" FontSize="12" TextWrapping="Wrap" AutomationProperties.Name="Glass preview sample status" AutomationProperties.LiveSetting="Polite" />
+    <TextBlock x:Name="EffectStatus" Foreground="{DynamicResource GlassMutedBrush}" Margin="2,0,2,16" FontSize="12" TextWrapping="Wrap" AutomationProperties.Name="Glass preview effect status" />
+  </StackPanel>
+  </Border>
+</UserControl>

@@ -8,6 +8,8 @@ In the current source build, a smaller window puts navigation under the menu but
 
 In **Settings → Window background**, choose **Mica (Windows default)** for a subtle tint, **Glass (Acrylic)** for Windows frosted glass, or **Solid**. This choice saves automatically and works with System, Light, and Dark appearance. Windows 11 22H2 or later is needed for the native effects; Windows transparency, contrast, remote-session, and energy-saver preferences can cause an explained solid fallback. The [responsive update record](responsive-glass-update.md) describes the tested behavior.
 
+To try a more expressive design on one page, choose **Try a different design → Open Liquid Glass preview** in Settings, or run `powershell -ExecutionPolicy Bypass -File scripts/run.ps1 -LiquidGlassPreview`. Switch Light/Dark, change the scene, or adjust Glass strength. The project and its files are sample data; preview controls only change the demonstration. **Back to Settings** returns to the normal interface. [Preview details](liquid-glass-preview.md).
+
 ## Start the portable app
 
 Extract the whole `GitCompass-0.1.1-win-x64.zip` into a folder you can write to. Run `GitCompass.exe` with its accompanying files in that folder. This internal trial is unsigned. It includes its .NET runtime; you do not need Visual Studio, VS Code or a .NET SDK to use it. The original 0.1.0 trial remains a separate older copy.

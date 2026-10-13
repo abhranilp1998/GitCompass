@@ -6,6 +6,8 @@ The current source includes the [Windows 11 Fluent and beginner walkthrough upda
 
 The [responsive layout and glass update](docs/responsive-glass-update.md) adds compact navigation, stacked controls and smaller activity/terminal toolbars down to 640 × 560. Settings → Window background offers Mica, Glass (Acrylic), and Solid independently of light/dark appearance. Native effects follow Windows transparency and accessibility preferences.
 
+For a stronger glass experiment, open **Settings → Try a different design → Open Liquid Glass preview**, or run `powershell -ExecutionPolicy Bypass -File scripts/run.ps1 -LiquidGlassPreview`. This launches the current source directly into the [experimental preview](docs/liquid-glass-preview.md), with sampled blur, curved-edge refraction, glossy rims, local Light/Dark controls and sample data.
+
 The [complete functional documentation](docs/functional-documentation.md) explains every screen and guided workflow, permissions, state changes, recovery, settings, storage, limitations and verified acceptance. It is the detailed manual; [the user guide](docs/user-guide.md) is the shorter starting path.
 
 Reading copies are available as a [printable PDF](output/pdf/GitCompass-Functional-Documentation-0.1.1.pdf) and [self-contained offline HTML](output/pdf/GitCompass-Functional-Documentation-0.1.1.html). Regenerate them with `python scripts/export-functional-documentation.py`; the manual's maintenance section lists the export dependencies and checks. The [0.1.1 inspection update](docs/inspection-update-0.1.1.md) explains branch viewing in Read-only/Monitor only, plain-folder guidance and the separate updated trial.
