@@ -1,0 +1,18 @@
+{
+  "chapters": 38,
+  "word_count": 14029,
+  "tables": 33,
+  "screenshots": 3,
+  "workflows": 2,
+  "local_links": "all targets and anchors valid",
+  "requirement_ids": "FR01-FR20 exactly once",
+  "application_version": "0.1.1",
+  "document_version": "1.1",
+  "pdf_pages": 42,
+  "pdf_bytes": 495576,
+  "html_bytes": 555032,
+  "pdf_bookmarks": "present",
+  "pdf_sha256": "050144c99582e93c577ffe2781a823fdca319e4be952af0ad89292200919c89a",
+  "source_sha256": "e537ce332d2bf2791be215f616599cd59519019057f2c4b89661b5b9f0e0cc29",
+  "application_package": "unchanged"
+}

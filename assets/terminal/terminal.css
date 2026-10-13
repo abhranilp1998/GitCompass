@@ -1,0 +1,3 @@
+html, body, #terminal { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #111827; }
+#terminal { box-sizing: border-box; padding: 8px; }
+.xterm-viewport { scrollbar-color: #475569 #111827; }

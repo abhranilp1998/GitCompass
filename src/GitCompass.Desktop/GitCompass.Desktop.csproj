@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.17763.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>GitCompass</AssemblyName>
+    <RootNamespace>GitCompass.Desktop</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>../../assets/branding/GitCompass.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="../../assets/branding/GitCompass.ico" Link="branding/GitCompass.ico" LogicalName="branding/GitCompass.ico" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Web.WebView2" />
+    <ProjectReference Include="../GitCompass.Domain/GitCompass.Domain.csproj" />
+    <ProjectReference Include="../GitCompass.Application/GitCompass.Application.csproj" />
+    <ProjectReference Include="../GitCompass.Infrastructure.Git/GitCompass.Infrastructure.Git.csproj" />
+    <ProjectReference Include="../GitCompass.Infrastructure.GitHub/GitCompass.Infrastructure.GitHub.csproj" />
+    <ProjectReference Include="../GitCompass.Infrastructure.Local/GitCompass.Infrastructure.Local.csproj" />
+    <ProjectReference Include="../GitCompass.Terminal.Windows/GitCompass.Terminal.Windows.csproj" />
+    <Content Include="../../assets/learning/**" Link="assets/learning/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <Version>0.1.1</Version>
+    <Product>GitCompass</Product>
+    <Company>GitCompass</Company>
+    <Description>A Windows Git workspace with guidance for beginners.</Description>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,14 @@
+.tools/
+.artifacts/
+**/bin/
+**/obj/
+**/node_modules/
+.vs/
+*.user
+*.suo
+TestResults/
+artifacts/
+tmp/
+**/__pycache__/
+*.pyc
+*.log

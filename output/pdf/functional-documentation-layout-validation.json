@@ -1,0 +1,16 @@
+{
+  "pdf_sha256": "063cddb35a1305b10e1221d6f4ca0315cba1d045a813589a700dae6753b1602c",
+  "rendered_pages": 42,
+  "source_paragraphs_lists_table_cells": "all present in PDF text",
+  "pdf_chapter_bookmarks": 38,
+  "pdf_contents_page_numbers": "match actual chapter destinations",
+  "text_outside_page": 0,
+  "html_duplicate_ids": 0,
+  "html_fragment_links": "all resolve",
+  "html_embedded_screenshots": 3,
+  "html_inline_workflows": 2,
+  "html_external_runtime_dependencies": 0,
+  "visual_review": "All 42 final pages inspected; tables, headings, captions, screenshots and both diagrams checked.",
+  "published_application_zip_sha256": "0099325C91C8A5FEF6FA92444D4FB983309ED9552EC94A62CE93B43F40910E09",
+  "published_source_zip_sha256": "A3BE249FF4E14B16CF910FCD9343D337A7104AD9032E5D782E0E79297B4C8113"
+}

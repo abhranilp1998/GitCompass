@@ -1,0 +1,15 @@
+{
+  "application_version": "0.1.1",
+  "document_version": "1.1",
+  "pdf_sha256": "050144c99582e93c577ffe2781a823fdca319e4be952af0ad89292200919c89a",
+  "rendered_pages": 42,
+  "source_text_items_checked": 1210,
+  "source_text": "all paragraphs, lists and table cells present",
+  "chapter_bookmarks": 38,
+  "contents_page_numbers": "match chapter destinations",
+  "text_outside_page": 0,
+  "html_links": "all fragment targets valid",
+  "html_images_and_workflows": "3 embedded screenshots, 2 inline workflows",
+  "html_external_runtime_dependencies": 0,
+  "visual_review": "All 42 final pages visually inspected; tables, headings, captions, screenshots, contents and both diagrams checked. The previously sparse glossary transition was corrected before this final export."
+}
