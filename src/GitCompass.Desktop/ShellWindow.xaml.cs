@@ -36,6 +36,11 @@ public partial class ShellWindow : Window
     private readonly List<(TerminalSession Session, TerminalView View, TabItem Tab)> sessions = [];
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(8) };
     private AppSettings settings = new();
+    /// <summary>Client ID embedded at build time (AssemblyMetadata GitCompassGitHubClientId), or null when none was shipped.</summary>
+    internal static readonly string? ShippedGitHubClientId = GitHubClientIdSource.Normalize(typeof(ShellWindow).Assembly
+        .GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false).OfType<System.Reflection.AssemblyMetadataAttribute>()
+        .FirstOrDefault(a => a.Key == "GitCompassGitHubClientId")?.Value);
+    private string? EffectiveGitHubClientId => GitHubClientIdSource.Resolve(settings.GitHubClientId, ShippedGitHubClientId);
     private GitWorkspace? workspace;
     private RemoteCheckScheduler? scheduler;
     private StructuredLogStore? logStore;
@@ -745,9 +750,9 @@ public partial class ShellWindow : Window
         Heading("Pull requests", "A pull request asks for review and a proposed merge from a source branch into a target branch. It is separate from Git pull.");
         var destination = model.Snapshot!.Push; var match = Regex.Match(destination?.Url ?? "", @"github\.com[:/]([^/]+)/(.+?)(?:\.git)?$");
         var owner = Input(PageContent, "Target repository owner", match.Success ? match.Groups[1].Value : ""); var repository = Input(PageContent, "Target repository name", match.Success ? match.Groups[2].Value : "");
-        if (string.IsNullOrWhiteSpace(settings.GitHubClientId))
+        if (string.IsNullOrWhiteSpace(EffectiveGitHubClientId))
         {
-            AddCard(PageContent, "GitHub sign-in has not been set up for this build. Open Advanced connection setup in Settings to add the app's public client ID. Local Git workflows and lessons remain available. Git transport authentication is separate.");
+            AddCard(PageContent, "GitHub sign-in has not been set up for this build. Open Advanced connection setup in Settings to add a GitHub App public client ID (see docs/github-app-setup.md). Local Git workflows and lessons remain available. Git transport authentication is separate.");
             PageContent.Children.Add(Action("Open connection settings", () => Navigate("Settings")));
         }
         var output = new StackPanel();
@@ -766,7 +771,7 @@ public partial class ShellWindow : Window
                 card.Children.Add(Action("Open pull request in browser", () => OpenLink(status.Request.HtmlUrl))); AddCard(output, card); output.BringIntoView();
             });
         }
-        var signIn = Action("Sign in to GitHub API", SignIn); signIn.IsEnabled = !string.IsNullOrWhiteSpace(settings.GitHubClientId); PageContent.Children.Add(signIn);
+        var signIn = Action("Sign in to GitHub API", SignIn); signIn.IsEnabled = !string.IsNullOrWhiteSpace(EffectiveGitHubClientId); PageContent.Children.Add(signIn);
         PageContent.Children.Add(OperationButton("Read pull requests", OperationKind.GitHubRead, async () =>
         {
             await WorkAsync(async () =>
@@ -815,7 +820,7 @@ public partial class ShellWindow : Window
     private GitHubClient CreateGitHubClient(Guid projectId)
     {
         if (!githubClients.TryGetValue(projectId, out var client)) githubClients[projectId] = client = new(http, tokens, () => Permission(projectId, OperationKind.GitHubRead), () => Permission(projectId, OperationKind.GitHubWrite));
-        if (!string.IsNullOrWhiteSpace(settings.GitHubClientId)) client.RefreshTokensAsync = new GitHubDeviceAuth(http, tokens, settings.GitHubClientId).RefreshAsync;
+        if (!string.IsNullOrWhiteSpace(EffectiveGitHubClientId)) client.RefreshTokensAsync = new GitHubDeviceAuth(http, tokens, EffectiveGitHubClientId!).RefreshAsync;
         return client;
     }
     private async Task<T> HostedOperationAsync<T>(Guid projectId, OperationKind kind, string purpose, Func<Task<T>> operation)
@@ -838,11 +843,11 @@ public partial class ShellWindow : Window
     private bool Permission(Guid id, OperationKind kind) { try { workspace!.Access.Authorize(id, kind); return true; } catch { return false; } }
     private async void SignIn()
     {
-        if (string.IsNullOrWhiteSpace(settings.GitHubClientId)) { Banner("Set the registered GitHub App public client ID in Settings first."); return; }
+        if (string.IsNullOrWhiteSpace(EffectiveGitHubClientId)) { Banner("Set the registered GitHub App public client ID in Settings first."); return; }
         authenticationCancellation?.Cancel(); authenticationCancellation = new();
         try
         {
-            var auth = new GitHubDeviceAuth(http, tokens, settings.GitHubClientId); var device = await auth.BeginAsync(authenticationCancellation.Token);
+            var auth = new GitHubDeviceAuth(http, tokens, EffectiveGitHubClientId!); var device = await auth.BeginAsync(authenticationCancellation.Token);
             reviewing = true; PageContent.Children.Clear(); Heading("Sign in to GitHub API", "Use your system browser. GitCompass never asks for your GitHub password."); AddCard(PageContent, "Enter code " + device.UserCode + " at " + device.VerificationUri + "\nThis request expires at " + device.ExpiresAt.ToLocalTime().ToString("t") + ".");
             PageContent.Children.Add(Action("Open GitHub sign-in", () => OpenLink(device.VerificationUri.ToString()), true)); PageContent.Children.Add(Action("Cancel sign-in", () => { authenticationCancellation.Cancel(); Navigate("Pull requests"); }));
             await auth.CompleteAsync(device, authenticationCancellation.Token); Banner("GitHub API sign-in completed. Git transport uses its separate credential helper."); Navigate("Pull requests");
@@ -967,6 +972,7 @@ public partial class ShellWindow : Window
         Text(advanced, "Detected: " + (DependencyProbe.FindGitExecutable() ?? "Git not found") + "\nHost: " + Environment.OSVersion.VersionString + " • " + System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture, true);
         Text(advanced, "GitHub sign-in uses an app registration. Enter its public client ID here; do not enter a password or client secret. This setting is needed for hosted pull requests, while local Git workflows work without it.", true);
         var client = Input(advanced, "Registered GitHub App public client ID", settings.GitHubClientId ?? "");
+        if (string.IsNullOrWhiteSpace(settings.GitHubClientId) && ShippedGitHubClientId is not null) Text(advanced, "This build includes a GitHub App client ID, so sign-in works without entering one. Enter a different ID here only to use your own app registration.", true);
         PageContent.Children.Add(new Expander { Header = "Advanced connection setup", Content = advanced, IsExpanded = workspace is null });
         PageContent.Children.Add(Action("Save settings", async () =>
         {

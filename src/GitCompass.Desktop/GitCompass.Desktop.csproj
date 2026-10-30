@@ -8,7 +8,12 @@
     <RootNamespace>GitCompass.Desktop</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>../../assets/branding/GitCompass.ico</ApplicationIcon>
+    <!-- Public GitHub App client ID shipped with the build. Set -p:GitCompassGitHubClientId=... or env GITCOMPASS_GITHUB_CLIENT_ID. Empty = Settings only. -->
+    <GitCompassGitHubClientId Condition="'$(GitCompassGitHubClientId)' == ''">$(GITCOMPASS_GITHUB_CLIENT_ID)</GitCompassGitHubClientId>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="GitCompassGitHubClientId" Value="$(GitCompassGitHubClientId)" />
+  </ItemGroup>
   <ItemGroup>
     <Resource Include="../../assets/branding/GitCompass.ico" Link="branding/GitCompass.ico" LogicalName="branding/GitCompass.ico" />
     <Resource Include="../../assets/shaders/liquid-refraction.ps" Link="shaders/liquid-refraction.ps" LogicalName="shaders/liquid-refraction.ps" />
