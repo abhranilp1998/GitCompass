@@ -14,8 +14,8 @@ Copy-Required (Join-Path $workspace 'THIRD_PARTY_NOTICES.md') 'THIRD_PARTY_NOTIC
 Copy-Required (Join-Path $workspace 'docs\user-guide.md') 'user-guide.md'
 Copy-Required (Join-Path $workspace 'docs\pilot-checklist.md') 'pilot-checklist.md'
 Copy-Required (Join-Path $workspace 'docs\verification.md') 'verification.md'
-Copy-Required (Join-Path $workspace ('archive\output\pdf\GitCompass-Functional-Documentation-' + $appVersion + '.pdf')) 'functional-documentation.pdf'
-Copy-Required (Join-Path $workspace ('archive\output\pdf\GitCompass-Functional-Documentation-' + $appVersion + '.html')) 'functional-documentation.html'
+Copy-Required (Join-Path $workspace ('archive\output\pdf\GitCompass-Functional-Documentation-' + $ManualVersion + '.pdf')) 'functional-documentation.pdf'
+Copy-Required (Join-Path $workspace ('archive\output\pdf\GitCompass-Functional-Documentation-' + $ManualVersion + '.html')) 'functional-documentation.html'
 Copy-Required (Join-Path $workspace 'docs\licenses\WindowsSDK-license.rtf') 'WindowsSDK-LICENSE.rtf'
 $documentation = Join-Path $published 'docs'
 New-Item -ItemType Directory -Path $documentation -Force | Out-Null
