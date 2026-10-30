@@ -10,7 +10,7 @@
 
 Get the latest version from the **[Releases page](https://github.com/abhranilp1998/GitCompass/releases)**.
 
-> **Release pending:** no release has been published on that page yet. Until then, build from source (see [docs/DEVELOPING.md](docs/DEVELOPING.md)).
+> **Latest release: 0.2.7.** Download the ZIP from the [Releases page](https://github.com/abhranilp1998/GitCompass/releases/latest), unzip it and run GitCompass.exe. To build from source instead, see [docs/DEVELOPING.md](docs/DEVELOPING.md).
 >
 > The current build is an early test version. It is not digitally signed yet, so Windows may show a blue "Windows protected your PC" box the first time you open it. Choose **More info**, then **Run anyway**.
 
@@ -50,22 +50,24 @@ Want to practise first? Use a practice project (source builds can create one wit
 GitCompass uses everyday words first and puts the Git word in brackets, like **Save a version (commit)**, so you learn the real words as you go. Hover over a Git word in the app to see what it means.
 
 <!-- glossary:start (generated from src/GitCompass.Domain/GitGlossary.cs; a test keeps it in sync) -->
-| Everyday words | Git word | What it means |
-|---|---|---|
-| Save a version | commit | A saved version of your project, stored on this computer. |
-| Choose files to save | stage | Picking which changed files go into your next saved version. |
-| Line of work | branch | A separate line of work, so you can try ideas without changing the main one. |
-| Combine work | merge | Joining the saved work from one line of work into another. |
-| Upload | push | Sending your saved versions to the online copy. |
-| Get updates | pull | Getting new saved versions from the online copy and adding them to your work. |
-| Check for updates | fetch | Checking the online copy for new saved versions, without changing your files. |
-| Online copy | remote | The online copy of your project, for example on GitHub. It is often named origin. |
-| Download a copy | clone | Downloading a full copy of a project, with all its history, into a new folder. |
-| Set work aside | stash | Putting unfinished edits aside for a while so you can come back to them. |
-| What changed | diff | What changed between two versions: lines taken out and lines added. |
-| Clashing changes | conflict | Two changes touched the same lines, so Git needs you to pick what to keep. |
-| Project with history | repository | A project folder where Git keeps every saved version. Often called a repo. |
-| You are here | HEAD | Where you are right now: usually the newest saved version on your current line of work. |
+| Everyday words | Git word | What it means | Official docs |
+|---|---|---|---|
+| Save a version | commit | A saved version of your project, stored on this computer. | [git-scm.com](https://git-scm.com/docs/git-commit) |
+| Choose files to save | stage | Picking which changed files go into your next saved version. | [git-scm.com](https://git-scm.com/docs/git-add) |
+| Line of work | branch | A separate line of work, so you can try ideas without changing the main one. | [git-scm.com](https://git-scm.com/docs/git-branch) |
+| Combine work | merge | Joining the saved work from one line of work into another. | [git-scm.com](https://git-scm.com/docs/git-merge) |
+| Upload | push | Sending your saved versions to the online copy. | [git-scm.com](https://git-scm.com/docs/git-push) |
+| Get updates | pull | Getting new saved versions from the online copy and adding them to your work. | [git-scm.com](https://git-scm.com/docs/git-pull) |
+| Check for updates | fetch | Checking the online copy for new saved versions, without changing your files. | [git-scm.com](https://git-scm.com/docs/git-fetch) |
+| Online copy | remote | The online copy of your project, for example on GitHub. It is often named origin. | [git-scm.com](https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes) |
+| Download a copy | clone | Downloading a full copy of a project, with all its history, into a new folder. | [git-scm.com](https://git-scm.com/docs/git-clone) |
+| Set work aside | stash | Putting unfinished edits aside for a while so you can come back to them. | [git-scm.com](https://git-scm.com/docs/git-stash) |
+| What changed | diff | What changed between two versions: lines taken out and lines added. | [git-scm.com](https://git-scm.com/docs/git-diff) |
+| Clashing changes | conflict | Two changes touched the same lines, so Git needs you to pick what to keep. | [git-scm.com](https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging) |
+| Project with history | repository | A project folder where Git keeps every saved version. Often called a repo. | [git-scm.com](https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository) |
+| Review request | pull request | Asking your team to look at your uploaded work and add it to theirs. Not the same as pull. | [docs.github.com](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests) |
+| Your own copy | fork | Your own online copy of someone else's project, so you can suggest changes without changing theirs. | [docs.github.com](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks) |
+| You are here | HEAD | Where you are right now: usually the newest saved version on your current line of work. | [git-scm.com](https://git-scm.com/book/en/v2/Git-Internals-Git-References) |
 <!-- glossary:end -->
 
 ## FAQ
