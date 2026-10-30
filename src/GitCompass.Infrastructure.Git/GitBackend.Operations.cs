@@ -150,6 +150,29 @@ internal sealed partial class GitBackend
                 var switchId = await ResolveCommit(s.Project.RootPath, "refs/heads/" + request.Branch, cancellation) ?? throw new InvalidOperationException("Choose an existing local branch; no remote branch is guessed or created.");
                 request = request with { TargetId = switchId };
                 explanation = "Switches to the exact existing local branch after preserving local changes. Git stops if ignored or untracked files would be overwritten."; display = $"git switch --no-guess --no-overwrite-ignore -- {Quote(request.Branch!)}"; targets.Add(request.Branch!); targets.Add(switchId); break;
+            case OperationKind.UndoCommit:
+                RequireAttached(s);
+                if (s.HeadId == null) throw new InvalidOperationException("There is no saved version to undo.");
+                if (request.TargetId != null && request.TargetId != s.HeadId) throw new InvalidOperationException("The latest saved version changed after you chose to undo it. Review again.");
+                var parents = (await Value(s.Project.RootPath, cancellation, "rev-list", "--parents", "--max-count=1", s.HeadId, "--"))?.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parents is not { Length: 2 }) throw new InvalidOperationException("Only an ordinary saved version with one earlier version can be undone here. First versions and merges need a separate review.");
+                // Undo is offered only before upload: no remote-tracking ref may contain this commit.
+                var published = await Read(s.Project.RootPath, cancellation, "for-each-ref", "--contains", s.HeadId, "--format=%(refname)", "refs/remotes/");
+                if (published.ExitCode != 0 || published.Output.Trim().Length > 0) throw new InvalidOperationException("This version may already be uploaded. Undoing it locally would rewrite shared history, so it isn't offered. Make a new commit that fixes it instead.");
+                // Tracking refs can lag (GitCompass pushes by URL), so also ask the actual push destination. Unknown => refuse.
+                if (s.Push is { Problem: null } undoPush && undoPush.Url.Length > 0 && undoPush.DestinationRef.Length > 0)
+                {
+                    var serverId = await ReadRemoteRef(s.Project, undoPush.Url, undoPush.DestinationRef, cancellation);
+                    if (serverId != null)
+                    {
+                        var contained = serverId == s.HeadId ? 0 : (await Read(s.Project.RootPath, cancellation, "merge-base", "--is-ancestor", s.HeadId, serverId)).ExitCode;
+                        if (contained != 1) throw new InvalidOperationException("This version is already uploaded, or the online copy couldn't be compared. Undoing it locally would rewrite shared history, so it isn't offered. Make a new commit that fixes it instead.");
+                    }
+                }
+                request = request with { TargetId = s.HeadId };
+                title = "Undo the last saved version";
+                explanation = "Moves " + s.Branch + " back to the version before " + s.HeadId[..7] + ". Your files are not changed and the undone changes stay staged, ready to save again. Only possible because this version was never uploaded.";
+                display = $"git reset --soft {parents[1]}"; targets.Add(s.HeadId); targets.Add(parents[1]); break;
             default: throw new InvalidOperationException("This capability has its own typed adapter and is not a public Git command.");
         }
         var indexFingerprint = request.Kind is OperationKind.Commit or OperationKind.ContinueMerge ? await IndexFingerprint(s.Project.RootPath, cancellation) : null;
@@ -219,6 +242,7 @@ internal sealed partial class GitBackend
                     break;
                 case OperationKind.ApplyStash: await Run(["stash", "apply", "--index", request.TargetId!]); stash = request.TargetId; break;
                 case OperationKind.CreateBranch: await Run(["branch", "--", request.Branch!, request.TargetId!]); break;
+                case OperationKind.UndoCommit: await Run(["reset", "--soft", preview.Targets[1]]); break;
                 case OperationKind.SwitchBranch: await Run(["switch", "--no-guess", "--no-overwrite-ignore", "--", request.Branch!]); break;
             }
             if (last == null) throw new InvalidOperationException("No typed operation was selected.");
@@ -285,6 +309,7 @@ internal sealed partial class GitBackend
             case OperationKind.Initialize: case OperationKind.Clone: return (await DiscoverAsync(root, cancellation)).Kind == RepositoryKind.WorkingTree;
             case OperationKind.Update: return await ResolveCommit(root, "HEAD", cancellation) == r.TargetId;
             case OperationKind.Commit: return await ResolveCommit(root, "HEAD", cancellation) is { } head && head != before.HeadId && await ReviewedCommitIdentity(root, head, before, false, cancellation) && indexFingerprint == await CommittedFingerprint(root, head, cancellation);
+            case OperationKind.UndoCommit: return await Value(root, cancellation, "symbolic-ref", "--short", "HEAD") == before.Branch && await ResolveCommit(root, "HEAD", cancellation) is { } undone && undone != r.TargetId && await Value(root, cancellation, "rev-parse", r.TargetId + "^") == undone;
             case OperationKind.CreateBranch: return await ResolveCommit(root, "refs/heads/" + r.Branch, cancellation) == r.TargetId;
             case OperationKind.SwitchBranch: return await Value(root, cancellation, "symbolic-ref", "--short", "HEAD") == r.Branch && await ResolveCommit(root, "HEAD", cancellation) == r.TargetId;
             case OperationKind.ConfigureRemote: return await Config(root, $"remote.{r.Remote}.url", cancellation) == r.RemoteUrl;
@@ -388,6 +413,7 @@ internal sealed partial class GitBackend
         OperationKind.Push => "The reviewed commit was confirmed at the selected remote branch.",
         OperationKind.Stash => "Work preserved in the exact recorded stash. Verify restoration before any later deletion.",
         OperationKind.ApplyStash => "Stash applied; the stored stash is retained. Review the restored files.",
+        OperationKind.UndoCommit => "Last saved version undone. Its changes are still here and staged, ready to save again.",
         OperationKind.Update => "Current branch fast-forwarded to the reviewed incoming commit.",
         _ => "Operation completed; refreshed project facts show the result."
     };

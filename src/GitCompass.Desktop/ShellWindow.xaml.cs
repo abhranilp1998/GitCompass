@@ -294,7 +294,7 @@ public partial class ShellWindow : Window
                 model.Snapshot = result.Snapshot; model.History = await workspace.HistoryAsync(result.Snapshot.ProjectId);
                 historySkip = 0; historyLeftId = historyRightId = historyLeftLabel = historyRightLabel = null;
                 if (result.PreservedStashId is not null) stashes[result.Snapshot.ProjectId] = result.PreservedStashId;
-                reviewing = false;
+                reviewing = false; RememberUndoable(preview, result);
                 var localSaveNote = preview.Request.Kind == OperationKind.Commit && result.State == OperationState.Succeeded
                     ? " This version is saved on this computer. It has not uploaded your work to a team service."
                     : "";
@@ -486,11 +486,43 @@ public partial class ShellWindow : Window
         PageContent.Children.Add(OperationButton("Review initial branch push", OperationKind.Push, async () => await RequestAsync(OperationKind.Push, remote: remote.Text, branch: publishBranch.Text, setUpstream: true)));
         PageContent.Children.Add(Action("Back to Overview", () => Navigate("Overview")));
     }
+    /// <summary>The most recent locally reversible step: a stage (undone by unstaging the same paths) or an unpublished commit (undone by soft reset). Both go through a normal preview.</summary>
+    private sealed record UndoableStep(Guid ProjectId, OperationKind Kind, ImmutableArray<string> Paths, string? CommitId);
+    private UndoableStep? lastUndoable;
+    private void RememberUndoable(OperationPreview preview, OperationResult result)
+    {
+        if (result.State != OperationState.Succeeded) { return; }
+        lastUndoable = preview.Request.Kind switch
+        {
+            OperationKind.Stage => new(result.Snapshot.ProjectId, OperationKind.Stage, preview.Request.Paths, result.Snapshot.HeadId),
+            OperationKind.Commit when result.Snapshot.HeadId is { } head => new(result.Snapshot.ProjectId, OperationKind.Commit, [], head),
+            _ => null, // any other step (including an undo or a push) clears the offer
+        };
+    }
+    private void BuildUndoCard(RepositorySnapshot snapshot)
+    {
+        if (lastUndoable is not { } undo || undo.ProjectId != snapshot.ProjectId || undo.CommitId != snapshot.HeadId) return;
+        var card = new StackPanel(); Subheading(card, "Undo last step");
+        if (undo.Kind == OperationKind.Stage)
+        {
+            var paths = undo.Paths.Where(p => snapshot.Files.Any(f => f.Path == p && f.IsStaged)).ToImmutableArray();
+            if (paths.Length == 0) return;
+            Text(card, "You just staged " + string.Join(", ", paths) + ". Undoing takes them out of the next save. Your files aren't changed.", true);
+            card.Children.Add(OperationButton("Review undo: unstage", OperationKind.Unstage, async () => await RequestAsync(OperationKind.Unstage, paths)));
+        }
+        else
+        {
+            Text(card, "You just saved a version on this computer. Undoing removes that save but keeps every change staged, so you can fix the message or contents and save again. This is offered only while the version hasn't been uploaded.", true);
+            card.Children.Add(OperationButton("Review undo: last saved version", OperationKind.UndoCommit, async () => await RequestAsync(OperationKind.UndoCommit, target: undo.CommitId)));
+        }
+        AddCard(PageContent, card);
+    }
     private void BuildChanges()
     {
         var snapshot = model.Snapshot!;
         Heading("Changed files", "Choose which saved file contents belong in the next version. A version is saved on this computer before you upload it.");
         BuildGuideEntry(PageContent);
+        BuildUndoCard(snapshot);
         if (!snapshot.HasAuthorIdentity)
             PageContent.Children.Add(SettingsRow("Set the author for your versions", "Git needs a name and email before your first save. These label your versions; they are separate from signing in.", Action("Set author details", () => Navigate("Author setup"))));
         if (workspace!.Access.Get(snapshot.ProjectId).Level != AccessLevel.AllowChanges)
@@ -1114,6 +1146,7 @@ public partial class ShellWindow : Window
         var origin = projectId ?? model.Snapshot?.ProjectId; var projectName = origin.HasValue ? workspace?.Projects.FirstOrDefault(project => project.Id == origin)?.DisplayName : null;
         var attributedTitle = projectName is null ? title : projectName + " • " + title;
         Banner(attributedTitle + ": " + detail); var panel = new StackPanel { Margin = new(0, 0, 0, 16) }; Text(panel, attributedTitle, false, 15, FontWeights.SemiBold); Text(panel, detail, true);
+        if (GitErrorExplainer.Explain(detail) is { } friendly) { Text(panel, "In plain words · " + friendly.Title, false, 14, FontWeights.SemiBold); Text(panel, friendly.WhatHappened, true); Text(panel, "What to do: " + friendly.WhatToDo, true); }
         if (detail.Contains("author name and email", StringComparison.OrdinalIgnoreCase)) panel.Children.Add(Action("Set author details", () => Navigate("Author setup"), true));
         panel.Children.Add(Action("Review operation output", async () => await ReviewProblemContextAsync(origin, false))); panel.Children.Add(Action("Prepare reviewed support information", async () => await ReviewProblemContextAsync(origin, true))); ProblemsPanel.Children.Insert(0, panel); while (ProblemsPanel.Children.Count > 40) ProblemsPanel.Children.RemoveAt(40);
         SetActivityDock(true); DockTabs.SelectedIndex = 1;

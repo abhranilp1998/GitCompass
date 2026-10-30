@@ -9,7 +9,7 @@ public enum FileKind { Tracked, Untracked, Conflicted, Ignored }
 public enum GitOperation { None, Merge, Rebase, CherryPick, Revert, Bisect }
 public enum RemoteCheckState { NotChecked, Succeeded, Failed, Unknown }
 public enum UserGoal { Understand, UploadWork, GetLatest, StartTask, PreparePullRequest, UnderstandError }
-public enum OperationKind { Initialize, Stage, Unstage, Commit, Fetch, Update, Push, ConfigureRemote, ApplyIgnore, Stash, ApplyStash, Merge, ContinueMerge, AbortMerge, CreateBranch, SwitchBranch, Terminal, GitHubRead, GitHubWrite, ConfigureIdentity, Clone, Inspect }
+public enum OperationKind { Initialize, Stage, Unstage, Commit, Fetch, Update, Push, ConfigureRemote, ApplyIgnore, Stash, ApplyStash, Merge, ContinueMerge, AbortMerge, CreateBranch, SwitchBranch, Terminal, GitHubRead, GitHubWrite, ConfigureIdentity, Clone, Inspect, UndoCommit }
 public enum OperationState { Queued, Starting, Running, Succeeded, Failed, Canceled, OutcomeUnknown, Denied, Stale }
 
 public sealed record ProjectRegistration(Guid Id, string DisplayName, string SelectedFolder, string RootPath, string CommonGitDirectory, RepositoryKind Kind, bool Trusted = false, bool MonitoringEnabled = false, string? IntendedBranch = null);

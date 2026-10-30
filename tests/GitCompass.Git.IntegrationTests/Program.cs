@@ -90,6 +90,16 @@ if (args.Contains("--focused"))
     Check(serverChangedResult.State == OperationState.Stale && events.Any(e => e.OperationId == serverChangedPreview.Id && e.State == OperationState.Stale), "A server advance within reviewed local ancestry still invalidates the original outgoing review and emits a truthful stale result");
     var refsBeforePush = await Git(local, "show-ref", "--heads", "--tags"); await Success(localId, OperationKind.Push);
     Check(await Git(local, "show-ref", "--heads", "--tags") == refsBeforePush, "Direct reviewed push URL prevents inherited fetch mappings from creating local branches/tags during push bookkeeping");
+    await Expect<InvalidOperationException>(() => workspace.PreviewAsync(new(localId, OperationKind.UndoCommit)), "Undo is refused for a version that is already uploaded");
+    var publishedHead = await Git(local, "rev-parse", "HEAD");
+    Write(local, "undo.txt", "undo me\n"); await Success(localId, OperationKind.Stage, ["undo.txt"]); await Success(localId, OperationKind.Commit, message: "Unpublished version to undo");
+    var undoneHead = (await Git(local, "rev-parse", "HEAD")).Trim();
+    var undo = await workspace.PreviewAsync(new(localId, OperationKind.UndoCommit, TargetId: undoneHead));
+    Check(undo.CommandDisplay == "git reset --soft " + publishedHead.Trim() && undo.Targets[0] == undoneHead, "Undo previews a soft reset to the exact parent of the reviewed version");
+    var undoResult = await workspace.ExecuteAsync(undo);
+    Check(undoResult.State == OperationState.Succeeded && (await Git(local, "rev-parse", "HEAD")).Trim() == publishedHead.Trim() && undoResult.Snapshot.Files.Any(f => f.Path == "undo.txt" && f.IsStaged) && File.ReadAllText(Path.Combine(local, "undo.txt")) == "undo me\n", "Undo moves the branch back one version, keeps the change staged and leaves files untouched");
+    await Expect<InvalidOperationException>(() => workspace.PreviewAsync(new(localId, OperationKind.UndoCommit, TargetId: undoneHead)), "Undo refuses a version that is no longer the latest");
+    await Success(localId, OperationKind.Unstage, ["undo.txt"]); File.Delete(Path.Combine(local, "undo.txt"));
     var intermediateUrl = Path.Combine(fixture, "reviewed intermediate.git"); var secondRewrite = Path.Combine(fixture, "unreviewed target.git");
     await Git(local, "config", "url." + intermediateUrl + ".pushInsteadOf", remote); await Git(local, "config", "url." + secondRewrite + ".pushInsteadOf", intermediateUrl);
     var rewriteHash = TreeHash(local);
