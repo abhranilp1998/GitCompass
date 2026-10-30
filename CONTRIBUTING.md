@@ -25,7 +25,7 @@ This restores packages, builds the solution and runs the test programs under `te
 5. Use plain words in anything a user sees. Explain Git ideas in one short sentence.
 6. Run `scripts/build.ps1` and make sure it passes, then open a pull request describing what changed and how you checked it.
 
-CI runs the same build and tests on every push and pull request.
+A CI workflow that runs the same build and tests is planned.
 
 ## Licence
 By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
