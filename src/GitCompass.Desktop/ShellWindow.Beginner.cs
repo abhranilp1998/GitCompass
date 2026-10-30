@@ -469,7 +469,7 @@ public partial class ShellWindow
     {
         var index = BeginnerMissions.Clamp(beginner.MissionIndex);
         Heading("Practice missions", index >= BeginnerMissions.Done ? "All missions complete." : $"Mission {index + 1} of {BeginnerMissions.Count} · every change is reviewed before it runs.");
-        var top = Row(); top.Children.Add(Action("Pause walkthrough", PauseBeginnerAsync)); top.Children.Add(Action("Exit walkthrough", ExitBeginnerAsync)); PageContent.Children.Add(top);
+        // Pause/Exit come from BuildWalkthrough, which hosts this page; adding them here duplicated the buttons.
         var progress = new ProgressBar { Minimum = 0, Maximum = BeginnerMissions.Count, Value = index, Height = 8, Margin = new Thickness(0, 8, 0, 4) };
         AutomationProperties.SetName(progress, BeginnerMissions.ProgressLabel(index)); PageContent.Children.Add(progress);
         Text(PageContent, BeginnerMissions.ProgressLabel(index), true);
