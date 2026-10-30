@@ -68,3 +68,7 @@ See the [user guide](docs/user-guide.md), or the [full manual](docs/functional-d
 ## For developers
 
 Building from source, tests and project structure are covered in **[docs/DEVELOPING.md](docs/DEVELOPING.md)**.
+
+## License
+
+GitCompass is free and open source under the [MIT License](LICENSE). Bundled third-party parts are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
