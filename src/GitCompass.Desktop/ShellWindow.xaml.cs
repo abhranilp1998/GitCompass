@@ -93,7 +93,7 @@ public partial class ShellWindow : Window
             workspace.Access.Changed += grant => Dispatcher.BeginInvoke(() => { if (model.Snapshot?.ProjectId == grant.ProjectId) UpdateContext(); });
             StartScheduler();
         }
-        else setupError = "Git is not installed or could not be found. Git remembers versions of your files on this computer. Open Settings for installation guidance, then check again to continue.";
+        else setupError = "Git for Windows was not found. Install Git, or set its git.exe path in Settings, then check again. Git remembers versions of your files on this computer. Settings has installation guidance.";
         ready = true; await UpdateRecentProjectsAsync(); UpdateContext(); RenderPage(); timer.Start();
     }
 
