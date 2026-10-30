@@ -80,11 +80,12 @@ if (args.Contains("--focused"))
     workspace.Access.SetLevel(localId, AccessLevel.AllowChanges);
     Write(local, "upload.txt", "explicit push review\n"); await Success(localId, OperationKind.Stage, ["upload.txt"]); await Success(localId, OperationKind.Commit, message: "Publish selected work safely");
     var serverChangedPreview = await workspace.PreviewAsync(new(localId, OperationKind.Push));
-    async Task<string> LocalEvidence() { var sb = new StringBuilder(); sb.AppendLine("refs:\n" + await Git(local, "show-ref", "--head")); sb.AppendLine("config:\n" + await Git(local, "config", "--list", "--show-origin")); sb.AppendLine("status:\n" + await Git(local, "status", "--porcelain=v2", "--branch", "--untracked-files=all")); foreach (var f in Directory.EnumerateFiles(Path.Combine(local, ".git")).Order(StringComparer.Ordinal)) sb.AppendLine(Path.GetFileName(f) + " " + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(f)))); return sb.ToString(); }
-    var evidenceBefore = await LocalEvidence(); var fingerprintAfterPreview = (await workspace.RefreshAsync(localId)).Fingerprint;
-    await Git(local, "push", "--", remote, "HEAD:refs/heads/main");
-    var evidenceAfter = await LocalEvidence(); var fingerprintAfterPush = (await workspace.RefreshAsync(localId)).Fingerprint;
-    if (fingerprintAfterPreview != serverChangedPreview.Fingerprint || fingerprintAfterPush != serverChangedPreview.Fingerprint) Console.WriteLine($"DIAG preview={serverChangedPreview.Fingerprint} afterPreview={fingerprintAfterPreview} afterPush={fingerprintAfterPush}\nDIAG BEFORE\n{evidenceBefore}\nDIAG AFTER\n{evidenceAfter}");
+    // Advance only the server: the bare remote fetches the reviewed commit itself. A `git push` from the local
+    // clone would let Git for Windows match the path to `origin` and update local refs/remotes/origin/main,
+    // which is a local change (correctly rejected before execution) rather than the server-only advance tested here.
+    var localRefsBeforeAdvance = await Git(local, "show-ref", "--head");
+    await Git(remote, "fetch", "--", local, "refs/heads/main:refs/heads/main");
+    Check(await Git(local, "show-ref", "--head") == localRefsBeforeAdvance && (await workspace.RefreshAsync(localId)).Fingerprint == serverChangedPreview.Fingerprint, "Fixture advances the server without changing any reviewed local state");
     var serverChangedResult = await workspace.ExecuteAsync(serverChangedPreview);
     Check(serverChangedResult.State == OperationState.Stale && events.Any(e => e.OperationId == serverChangedPreview.Id && e.State == OperationState.Stale), "A server advance within reviewed local ancestry still invalidates the original outgoing review and emits a truthful stale result");
     var refsBeforePush = await Git(local, "show-ref", "--heads", "--tags"); await Success(localId, OperationKind.Push);
