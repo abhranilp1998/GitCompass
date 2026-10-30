@@ -127,6 +127,15 @@ public partial class ShellWindow
         Navigate("Overview");
     }
 
+    /// <summary>Exit asks first; Pause leaves immediately. Both keep MissionIndex, so Resume returns to the same mission.</summary>
+    private async Task ExitBeginnerAsync()
+    {
+        var index = BeginnerMissions.Clamp(beginner.MissionIndex);
+        var label = IsPracticeProject && index < BeginnerMissions.Done ? $"mission {index + 1} of {BeginnerMissions.Count}" : null;
+        var dialog = new LeaveWalkthroughDialog(this, label);
+        if (dialog.ShowDialog() == true && dialog.Leave) await PauseBeginnerAsync();
+    }
+
     private void BuildBeginnerWelcome()
     {
         Heading("Open your project", "Choose any project folder. GitCompass will check whether it already has version history.");
@@ -272,7 +281,7 @@ public partial class ShellWindow
     private void BuildWalkthrough()
     {
         Heading("Your first saved version", "A guided local save, using your project's actual status. You can pause and return later.");
-        var top = Row(); top.Children.Add(Action("Pause walkthrough", PauseBeginnerAsync)); top.Children.Add(Action("Choose another project", () => PickFolder(this, new RoutedEventArgs()))); PageContent.Children.Add(top);
+        var top = Row(); top.Children.Add(Action("Pause walkthrough", PauseBeginnerAsync)); top.Children.Add(Action("Exit walkthrough", ExitBeginnerAsync)); top.Children.Add(Action("Choose another project", () => PickFolder(this, new RoutedEventArgs()))); PageContent.Children.Add(top);
         if (model.Snapshot is null || workspace is null)
         {
             var choose = new StackPanel(); Subheading(choose, "1. Choose a project");
@@ -441,7 +450,7 @@ public partial class ShellWindow
     {
         var index = BeginnerMissions.Clamp(beginner.MissionIndex);
         Heading("Practice missions", index >= BeginnerMissions.Done ? "All missions complete." : $"Mission {index + 1} of {BeginnerMissions.Count} · every change is reviewed before it runs.");
-        var top = Row(); top.Children.Add(Action("Pause walkthrough", PauseBeginnerAsync)); top.Children.Add(Action("Exit walkthrough", PauseBeginnerAsync)); PageContent.Children.Add(top);
+        var top = Row(); top.Children.Add(Action("Pause walkthrough", PauseBeginnerAsync)); top.Children.Add(Action("Exit walkthrough", ExitBeginnerAsync)); PageContent.Children.Add(top);
         if (index >= BeginnerMissions.Done)
         {
             var recap = new StackPanel(); Subheading(recap, "You did it");

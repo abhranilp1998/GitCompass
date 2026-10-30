@@ -183,6 +183,11 @@ internal static class BeginnerWorkflowChecks
             "only the explicitly reviewed guided action creates a Git-ready practice repository and starts mission 1");
         window.ConfigureView("Walkthrough", "Light");
         check(Texts(window).Any(text => text.Contains("Practice missions")), "the guided practice repository shows the practice missions");
+        check(HasButton(window, "Pause walkthrough") && HasButton(window, "Exit walkthrough"), "missions offer a direct Pause and a confirmed Exit");
+        await InvokeAsync(window, "SetMissionAsync", BeginnerMissions.Commit, "Walkthrough");
+        Click(window, "Pause walkthrough"); await Until(window, () => IsIdle(window) && !HasButton(window, "Exit walkthrough")); check(!(await state.LoadBeginnerGuideAsync()).Active, "pause leaves the walkthrough without a prompt");
+        await InvokeAsync(window, "ResumeBeginnerAsync"); await Until(window, () => IsIdle(window) && Texts(window).Any(text => text.Contains("Mission 3 of 5")));
+        check((await state.LoadBeginnerGuideAsync()).MissionIndex == BeginnerMissions.Commit, "pause then resume returns to the exact mission");
 
         await window.OpenProjectAsync(originalRepository); window.ConfigureView("Walkthrough", "Light");
         check(Snapshot(window)!.HeadId is not null && (await state.LoadBeginnerGuideAsync()).SavedCommitId is null && !Texts(window).Any(text => text.Contains("6. Your version is saved on this computer")), "opening a project with existing history does not fabricate first-save completion");
