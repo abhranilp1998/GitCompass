@@ -95,6 +95,7 @@ public partial class LiquidGlassPreview : UserControl
         });
     }
 
+    private GitCompass.Domain.ThemeContrast.GlassPalette Glass => IsDark ? GitCompass.Domain.ThemeContrast.GlassDark : GitCompass.Domain.ThemeContrast.GlassLight;
     private void ApplySystemPreferences()
     {
         if (!initialized) return;
@@ -105,14 +106,14 @@ public partial class LiquidGlassPreview : UserControl
         { transparency = false; }
         EffectsEnabled = !highContrast && transparency && (RenderCapability.Tier >> 16) > 0;
         MotionEnabled = EffectsEnabled && SystemParameters.ClientAreaAnimation;
-        SetBrush("GlassTextBrush", highContrast ? SystemColors.WindowTextColor : IsDark ? ColorOf("#F8FAFF") : ColorOf("#172A48"));
-        SetBrush("GlassPageBrush", highContrast ? SystemColors.WindowColor : ColorOf(IsDark ? "#14243A" : "#F4F7FC"));
-        SetBrush("GlassMutedBrush", highContrast ? SystemColors.WindowTextColor : IsDark ? ColorOf("#E2EAF7") : ColorOf("#304664"));
-        SetBrush("GlassAccentBrush", highContrast ? SystemColors.HighlightColor : IsDark ? ColorOf("#BEDBFF") : ColorOf("#244EC9"));
-        SetBrush("GlassButtonBrush", highContrast ? SystemColors.WindowColor : ColorOf(IsDark ? "#433C5A87" : "#50FFFFFF"));
+        SetBrush("GlassTextBrush", highContrast ? SystemColors.WindowTextColor : ColorOf(Glass.Text));
+        SetBrush("GlassPageBrush", highContrast ? SystemColors.WindowColor : ColorOf(Glass.Page));
+        SetBrush("GlassMutedBrush", highContrast ? SystemColors.WindowTextColor : ColorOf(Glass.Muted));
+        SetBrush("GlassAccentBrush", highContrast ? SystemColors.HighlightColor : ColorOf(Glass.Accent));
+        SetBrush("GlassButtonBrush", highContrast ? SystemColors.WindowColor : ColorOf(Glass.Button));
         SetBrush("GlassButtonEdgeBrush", highContrast ? SystemColors.WindowTextColor : ColorOf(IsDark ? "#8EA5C6EF" : "#B7FFFFFF"));
         Artwork.Visibility = highContrast ? Visibility.Collapsed : Visibility.Visible;
-        SceneRoot.Background = highContrast ? SystemColors.WindowBrush : new SolidColorBrush(ColorOf(IsDark ? "#152444" : "#D7E6F7"));
+        SceneRoot.Background = highContrast ? SystemColors.WindowBrush : new SolidColorBrush(ColorOf(Glass.Scene));
         SceneFrame.BorderBrush = highContrast ? SystemColors.WindowTextBrush : new SolidColorBrush(ColorOf(IsDark ? "#7A9DAFDB" : "#B8FFFFFF"));
         UpdateScene();
         UpdateMaterial();

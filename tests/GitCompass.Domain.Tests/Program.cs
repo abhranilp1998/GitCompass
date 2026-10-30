@@ -93,5 +93,27 @@ Check(GitErrorExplainer.Explain("fatal: not a git repository (or any of the pare
     var dir = new DirectoryInfo(AppContext.BaseDirectory); while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "GitCompass.sln"))) dir = dir.Parent;
     var readme = dir is null ? "" : File.ReadAllText(Path.Combine(dir.FullName, "README.md")).Replace("\r\n", "\n");
     Check(readme.Contains(GitGlossary.MarkdownTable()), "README glossary matches the single glossary source (GitGlossary)");
+    var manifestText = dir is null ? "" : File.ReadAllText(Path.Combine(dir.FullName, "assets", "learning", "manifest.json"));
+    var generator = dir is null ? "" : File.ReadAllText(Path.Combine(dir.FullName, "assets", "learning", "build-catalog.ps1"));
+    using var manifest = System.Text.Json.JsonDocument.Parse(manifestText);
+    var lessons = manifest.RootElement.GetProperty("Entries").EnumerateArray().ToDictionary(e => e.GetProperty("Id").GetString()!, e => e);
+    Check(GitGlossary.Terms.All(t => lessons.ContainsKey(t.LessonId)), "Every glossary term opens a lesson that exists in the Learn catalog");
+    string[] concepts = ["basics", "journey", "ignore", "pr", "conflicts", "remote"];
+    string Esc(string v) => v.Replace("'", "''");
+    Check(concepts.All(id => lessons.ContainsKey(id) && generator.Contains(Esc(lessons[id].GetProperty("Purpose").GetString()!)) && generator.Contains(Esc(lessons[id].GetProperty("Title").GetString()!))), "Concept lessons in manifest.json match their generator (build-catalog.ps1)");
+    string[] jargon = ["index", "upstream", "metadata", "tracked", "untracked", "hosted collaboration", "transport"];
+    Check(concepts.All(id => lessons[id].EnumerateObject().Where(p => p.Name is "Title" or "Purpose" or "Effects" or "WhenToPause" or "Outcome").All(p => !jargon.Any(j => p.Value.GetString()!.Contains(j, StringComparison.OrdinalIgnoreCase)))), "Concept lessons avoid unexplained jargon");
+}
+Check(GitGlossary.Terms.All(t => Uri.TryCreate(t.DocUrl, UriKind.Absolute, out var u) && u.Scheme == "https" && (u.Host == "git-scm.com" || u.Host == "docs.github.com")), "Every glossary term links to official docs (git-scm.com or docs.github.com) over https");
+Check(GitGlossary.LinkText("https://git-scm.com/docs/git-commit") == "Learn more on git-scm.com ↗" && GitGlossary.DocUrlForLesson("git-push") == "https://git-scm.com/docs/git-push" && GitGlossary.DocUrlForLesson("pr")!.Contains("docs.github.com"), "Doc link text and lesson doc URLs");
+Check(GitGlossary.TermsIn("Open a pull request from your fork").Select(t => t.Term).SequenceEqual(["pull request", "fork"]), "Glossary recognises pull request and fork");
+Check(GitErrorExplainer.Explain("fatal: not a git repository (or any of the parent directories): .git")?.DocUrl?.StartsWith("https://") == true, "Friendly errors carry an official doc link where one helps");
+foreach (var (pair, ratio) in ThemeContrast.Pairs()) Check(ratio >= ThemeContrast.AA, $"Contrast {pair} is {ratio:0.00}:1 (WCAG AA needs 4.5)");
+Check(ThemeContrast.Ratio("#000000", "#FFFFFF") is > 20.9 and < 21.1 && ThemeContrast.Over("#80FFFFFF", "#000000") == "#808080", "Contrast maths matches WCAG reference values");
+foreach (var accent in new[] { "#FFB900", "#00CC6A", "#FFFFFF", "#0078D4", "#E3008C", "#000000" })
+{
+    var light = ThemeContrast.EnsureReadable(accent, false, ThemeContrast.Light[0], ThemeContrast.Light[1], ThemeContrast.Light[6]);
+    var dark = ThemeContrast.EnsureReadable(accent, true, ThemeContrast.Dark[0], ThemeContrast.Dark[1], ThemeContrast.Dark[6]);
+    Check(new[] { 0, 1, 6 }.All(i => ThemeContrast.Ratio(light, ThemeContrast.Light[i]) >= 4.5 && ThemeContrast.Ratio(dark, ThemeContrast.Dark[i]) >= 4.5), $"Any Windows accent ({accent}) is adjusted to stay readable in light and dark themes");
 }
 Console.WriteLine($"{count} domain assertions passed.");
