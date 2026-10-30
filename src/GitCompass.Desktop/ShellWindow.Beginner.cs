@@ -213,7 +213,7 @@ public partial class ShellWindow
             Subheading(start, "Start remembering versions of my files");
             Text(start, "This creates local Git history in this folder. Your files stay in place. Nothing is uploaded and no GitHub account is needed. The first branch will be called main; a branch is a named line of saved versions.", true);
             ExplainBeginnerAccess(start);
-            start.Children.Add(OperationButton("Review initialization", OperationKind.Initialize, async () => await RequestAsync(OperationKind.Initialize, branch: "main")));
+            start.Children.Add(OperationButton("Preview starting version saving here (git init)", OperationKind.Initialize, async () => await RequestAsync(OperationKind.Initialize, branch: "main")));
             AddCard(PageContent, start);
         }
         else BuildTeamCopySetup(PageContent);
@@ -235,7 +235,7 @@ public partial class ShellWindow
         {
             Text(team, "Download folder: " + destination, true);
             ExplainBeginnerAccess(team);
-            team.Children.Add(OperationButton("Review download of team project", OperationKind.Clone, async () =>
+            team.Children.Add(OperationButton("Preview downloading the team project (clone)", OperationKind.Clone, async () =>
             {
                 if (string.IsNullOrWhiteSpace(link.Text)) { Banner("Ask your team for a project link, then paste it here."); return; }
                 await RequestAsync(OperationKind.Clone, remoteUrl: link.Text.Trim());
@@ -336,7 +336,7 @@ public partial class ShellWindow
         Subheading(save, recorded ? "6. Your version is saved on this computer" : "6. Save a version on this computer");
         Text(save, recorded ? (snapshot.HeadId == beginner.SavedCommitId ? "Saved version: " : "Earlier walkthrough save: ") + Short(beginner.SavedCommitId!) + ". " +
             (snapshot.HeadId == beginner.SavedCommitId ? "" : "The current branch now shows a different version. Inspect Saved versions to see its available history. ") +
-            "Saving a version does not upload it. Online sharing is a separate reviewed action." : "On Changed files, describe what changed and choose Review local commit. A commit is a saved version. Check the project and all selected contents, then run the reviewed operation.", true);
+            "Saving a version does not upload it. Online sharing is a separate reviewed action." : "On Changed files, describe what changed and choose Preview saving this version (commit). A commit is a saved version. Check the project and all selected contents, then run the reviewed operation.", true);
         if (recorded)
         {
             save.Children.Add(Action("View saved versions", () => Navigate("History graph")));
@@ -366,7 +366,7 @@ public partial class ShellWindow
         var name = Input(form, "Your author name", model.Snapshot.AuthorName ?? "");
         var email = Input(form, "Your author email", model.Snapshot.AuthorEmail ?? "");
         ExplainBeginnerAccess(form);
-        form.Children.Add(OperationButton("Review author identity change", OperationKind.ConfigureIdentity, async () =>
+        form.Children.Add(OperationButton("Preview saving your name and email", OperationKind.ConfigureIdentity, async () =>
         {
             if (string.IsNullOrWhiteSpace(name.Text) || string.IsNullOrWhiteSpace(email.Text)) { Banner("Enter both your author name and email before reviewing."); return; }
             await RequestAsync(OperationKind.ConfigureIdentity, authorName: name.Text.Trim(), authorEmail: email.Text.Trim());

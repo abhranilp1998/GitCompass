@@ -62,24 +62,24 @@ internal static class Program
         Check(workspace.Access.Get(project.Id).Level == AccessLevel.ReadOnly, "native shell opens actual repository in Read-only");
         var afterIndex = await File.ReadAllBytesAsync(Path.Combine(repository, ".git", "index"));
         Check(beforeIndex.SequenceEqual(afterIndex), "opening/rendering Changes preserves repository index bytes");
-        Check(!FindButton("Review staging selected files").IsEnabled, "stage control explains and enforces disabled Read-only state");
+        Check(!FindButton("Preview adding chosen files (stage)").IsEnabled, "stage control explains and enforces disabled Read-only state");
 
         // This fixture was created by this test. Trust setup is injected only into the test's private workspace;
         // actual access change, selection, review and execution are driven through rendered native controls.
         workspace.SetTrusted(project.Id, true);
         await _window.OpenProjectAsync(repository); _window.ConfigureView("Changes", "Light"); _window.UpdateLayout();
         ((ComboBox)_window.FindName("AccessSelector")).SelectedIndex = (int)AccessLevel.AllowChanges;
-        await Until(() => workspace.Access.Get(project.Id).Level == AccessLevel.AllowChanges && FindButton("Review staging selected files").IsEnabled);
+        await Until(() => workspace.Access.Get(project.Id).Level == AccessLevel.AllowChanges && FindButton("Preview adding chosen files (stage)").IsEnabled);
         Check(workspace.Access.Get(project.Id).Level == AccessLevel.AllowChanges, "Access selector unlocks the correct project session");
         var files = Descendants<ListBox>(_window).First(list => AutomationProperties.GetName(list) == "Unstaged and new files"); files.SelectedIndex = 0;
-        Click("Review staging selected files"); await Until(() => HasButton("Run reviewed operation"));
+        Click("Preview adding chosen files (stage)"); await Until(() => HasButton("Confirm and run this step"));
         Check(Descendants<TextBox>(_window).Any(box => box.Text.Contains("git --literal-pathspecs add")), "review displays actual underlying stage command");
-        Click("Run reviewed operation");
-        await Until(() => workspace.GetSnapshot(project.Id)?.Files.Any(file => file.IsStaged) == true && HasButton("Review local commit"));
+        Click("Confirm and run this step");
+        await Until(() => workspace.GetSnapshot(project.Id)?.Files.Any(file => file.IsStaged) == true && HasButton("Preview saving this version (commit)"));
         Check((await Git(repository, "diff", "--cached", "--", "readme.txt")).Contains("Reviewed UI workflow change"), "native stage review executes only selected real file contents");
         var message = Descendants<TextBox>(_window).First(box => AutomationProperties.GetName(box).StartsWith("Message:")); message.Text = "Save reviewed native workflow version";
-        Click("Review local commit"); await Until(() => HasButton("Run reviewed operation")); Click("Run reviewed operation");
-        await Until(() => workspace.GetSnapshot(project.Id)?.HeadId != initialHead && HasButton("Review local commit"));
+        Click("Preview saving this version (commit)"); await Until(() => HasButton("Confirm and run this step")); Click("Confirm and run this step");
+        await Until(() => workspace.GetSnapshot(project.Id)?.HeadId != initialHead && HasButton("Preview saving this version (commit)"));
         var newHead = (await Git(repository, "rev-parse", "HEAD")).Trim();
         Check(newHead != initialHead && (await Git(repository, "show", "HEAD:readme.txt")).Contains("Reviewed UI workflow change"), "native commit review records expected contents locally");
         Check((await Git(repository, "remote")).Trim().Length == 0, "local commit workflow creates no remote or upload");

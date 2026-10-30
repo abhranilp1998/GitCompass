@@ -58,14 +58,14 @@ internal static class UiEvidenceChecks
             ((ComboBox)window.FindName("AccessSelector")).SelectedIndex = (int)mode;
             await Until(() => workspace.Access.Get(project.Id).Level == mode);
             window.ConfigureView("Branches", mode == AccessLevel.ReadOnly ? "Light" : "Dark");
-            await Until(() => HasButton("View selected branch history"));
-            var branches = Descendants<ListBox>(window).Single(list => AutomationProperties.GetName(list) == "Available branches");
+            await Until(() => HasButton("See saved versions on this line of work"));
+            var branches = Descendants<ListBox>(window).Single(list => AutomationProperties.GetName(list) == "Your lines of work (branches)");
             var selected = branches.Items.OfType<ListBoxItem>().First(item => item.Tag is BranchInfo branch && branch.IsRemote == (mode == AccessLevel.ReadOnly) && !branch.Name.EndsWith("/HEAD", StringComparison.Ordinal));
             branches.SelectedItem = selected;
-            Check(Button("View selected branch history").IsEnabled && !Button("Review switching to selected local branch").IsEnabled && !Button("Review creating branch").IsEnabled, $"{mode} permits viewing branch history while branch writes remain disabled");
+            Check(Button("See saved versions on this line of work").IsEnabled && !Button("Preview switching to this line of work (branch)").IsEnabled && !Button("Preview creating a new line of work (branch)").IsEnabled, $"{mode} permits viewing branch history while branch writes remain disabled");
             Check(!((Button)window.FindName("NewTerminalButton")).IsEnabled, $"{mode} explains disabled interactive terminal creation");
             Capture(root, mode == AccessLevel.ReadOnly ? "branch-browsing-read-only-light" : "branch-browsing-monitor-dark");
-            Click("View selected branch history");
+            Click("See saved versions on this line of work");
             await Until(() => Texts().Any(text => text.Contains("Viewing recorded history:")) && HasButton("Show current branch and team copy") && IsIdle());
             var shellModel = typeof(ShellWindow).GetField("model", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
             var history = (HistoryPage)shellModel.GetType().GetProperty("History")!.GetValue(shellModel)!;
@@ -115,13 +115,13 @@ internal static class UiEvidenceChecks
         Capture(root, "selected-diff-light");
         workspace.SetTrusted(project.Id, true); await window.OpenProjectAsync(repository); window.ConfigureView("Changes", "Light"); window.UpdateLayout();
         ((ComboBox)window.FindName("AccessSelector")).SelectedIndex = (int)AccessLevel.AllowChanges;
-        await Until(() => HasButton("Review staging selected files") && Button("Review staging selected files").IsEnabled && IsIdle());
+        await Until(() => HasButton("Preview adding chosen files (stage)") && Button("Preview adding chosen files (stage)").IsEnabled && IsIdle());
         files = Descendants<ListBox>(window).First(list => AutomationProperties.GetName(list) == "Unstaged and new files"); files.SelectedIndex = 0;
-        Click("Review staging selected files"); await Until(() => HasButton("Run reviewed operation"));
+        Click("Preview adding chosen files (stage)"); await Until(() => HasButton("Confirm and run this step"));
         Check(Fields().Any(field => field.Text.Contains("git --literal-pathspecs add")), "native preview exposes the underlying selected-file command before execution");
         Capture(root, "stage-preview-light"); Click("Cancel review"); window.UpdateLayout();
-        Check(HasButton("Review local commit"), "canceling a review restores Changes without executing it");
-        Click("Review local commit"); await Until(() => ((Border)window.FindName("StatusBanner")).Visibility == Visibility.Visible && Texts().Any(text => text.Contains("That step didn't work")));
+        Check(HasButton("Preview saving this version (commit)"), "canceling a review restores Changes without executing it");
+        Click("Preview saving this version (commit)"); await Until(() => ((Border)window.FindName("StatusBanner")).Visibility == Visibility.Visible && Texts().Any(text => text.Contains("That step didn't work")));
         Check(((StackPanel)window.FindName("ProblemsPanel")).Children.Count > 0, "an invalid local commit request produces a visible actionable problem");
         window.ConfigureView("Changes", "Dark"); Capture(root, "actionable-failure-dark");
         ((ComboBox)window.FindName("AccessSelector")).SelectedIndex = (int)AccessLevel.ReadOnly;
@@ -144,7 +144,7 @@ internal static class UiEvidenceChecks
         await window.OpenProjectAsync(candidate); window.ConfigureView("Overview", "Light"); window.UpdateLayout();
         Check(((Border)window.FindName("StatusBanner")).Visibility == Visibility.Collapsed, "changing projects clears transient failures from the previously selected project");
         Check(!Directory.Exists(Path.Combine(candidate, ".git")) && HasButton("These are my own files"), "non-Git onboarding preserves candidate folder and asks project origin before initialization");
-        Click("These are my own files"); await Until(() => HasButton("Review initialization"));
+        Click("These are my own files"); await Until(() => HasButton("Preview starting version saving here (git init)"));
         Capture(root, "non-git-onboarding-light");
         var candidateBefore = Program.Fingerprint(candidate);
         var candidateProject = workspace.Projects.Single(p => p.RootPath == candidate);
@@ -156,11 +156,11 @@ internal static class UiEvidenceChecks
         foreach (var page in new[] { "Changes", "History graph", "Branches", "Pull requests" })
         {
             window.ConfigureView(page, "Light"); window.UpdateLayout();
-            Check(Texts().Any(text => text.Contains("This folder doesn't keep saved versions yet")) && HasButton("Start saving versions here") && !HasButton("Review local commit") && !HasButton("Review creating branch"), $"non-Git {page} offers learning/setup instead of empty Git controls");
+            Check(Texts().Any(text => text.Contains("This folder doesn't keep saved versions yet")) && HasButton("Start saving versions here") && !HasButton("Preview saving this version (commit)") && !HasButton("Preview creating a new line of work (branch)"), $"non-Git {page} offers learning/setup instead of empty Git controls");
             Capture(root, "non-git-" + page.Replace(' ', '-').ToLowerInvariant() + "-light");
         }
-        Click("Start saving versions here"); await Until(() => HasButton("Review initialization"));
-        Check(!Button("Review initialization").IsEnabled && !Directory.Exists(Path.Combine(candidate, ".git")) && Program.Fingerprint(candidate) == candidateBefore, "opening a non-Git setup path does not initialize or alter existing files in Monitor only");
+        Click("Start saving versions here"); await Until(() => HasButton("Preview starting version saving here (git init)"));
+        Check(!Button("Preview starting version saving here (git init)").IsEnabled && !Directory.Exists(Path.Combine(candidate, ".git")) && Program.Fingerprint(candidate) == candidateBefore, "opening a non-Git setup path does not initialize or alter existing files in Monitor only");
         window.ConfigureView("Settings", "Light"); window.UpdateLayout();
         Check(!Checkbox("Enable periodic remote checks for the current project in this session").IsEnabled, "a non-Git folder cannot enable periodic fetches");
         ((TabControl)window.FindName("DockTabs")).SelectedIndex = 1; window.UpdateLayout(); Click("Get help: make a summary to share");

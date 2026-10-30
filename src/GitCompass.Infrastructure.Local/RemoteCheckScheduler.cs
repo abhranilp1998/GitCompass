@@ -62,7 +62,7 @@ public sealed class RemoteCheckScheduler(GitWorkspace workspace, TimeSpan interv
                         if (schedule.LastMeaningful != meaningful &&
                             (after.Behind > (before?.Behind ?? 0) || after.Ahead > 0 && after.Behind > 0 || before?.UpstreamId != null && after.UpstreamId == null))
                             PublishNotice(new(project.Id, after.Ahead > 0 && after.Behind > 0
-                                ? "Local and team history have both changed. Review integration options."
+                                ? "Local and team history have both changed. See ways to combine work (merge)."
                                 : after.UpstreamId == null ? "The tracked remote branch is missing. Review the destination." : $"{after.Behind} team commits are ready to review."));
                         schedule.LastMeaningful = meaningful;
                     }

@@ -152,7 +152,7 @@ Merely launching the normal app does not choose a recent project, initialize a r
 
 If Git cannot be found, open **Settings → Advanced connection setup**, set the actual `git.exe` path, save and restart. The executable selection changes local preferences; it does not install Git.
 
-If settings cannot be parsed or their schema is unsupported, the original file is preserved. **Preserve damaged settings and use reviewed defaults** copies it to a separate recovery file before allowing reviewed defaults to be saved. Do not interpret this as an automatic migration of an unknown settings format.
+If settings cannot be parsed or their schema is unsupported, the original file is preserved. **Back up the broken settings file and start fresh** copies it to a separate recovery file before allowing reviewed defaults to be saved. Do not interpret this as an automatic migration of an unknown settings format.
 
 ## 4. Your first practice session
 
@@ -214,7 +214,7 @@ Opening a folder resolves the actual repository root and shared Git metadata ide
 
 Selecting a subfolder inside a repository does not create a new nested repository. GitCompass shows the actual root. Guided initialization is rejected when the folder already belongs to a repository.
 
-A candidate folder shows **Not using Git** in the header. Changes, History graph, Branches and Pull requests each explain what is unavailable and offer **Review ways to start using Git**, learning and folder selection. Remote checks and periodic monitoring are unavailable there, including in Monitor only. Opening setup preserves the files; initialization and clone still need Allow changes and a reviewed operation. GitCompass is not a general file editor or a backup system for ordinary folders.
+A candidate folder shows **Not using Git** in the header. Changes, History graph, Branches and Pull requests each explain what is unavailable and offer **Start saving versions here**, learning and folder selection. Remote checks and periodic monitoring are unavailable there, including in Monitor only. Opening setup preserves the files; initialization and clone still need Allow changes and a reviewed operation. GitCompass is not a general file editor or a backup system for ordinary folders.
 
 A working Git repository without a remote or GitHub integration remains useful for local history, branches, diffs and reviewed local commits. Unknown team comparisons do not mean zero incoming or outgoing commits. A remote can be configured separately when online collaboration is wanted; GitHub API sign-in is not a prerequisite for local Git work.
 
@@ -299,7 +299,7 @@ The selector governs GitCompass. It is not a Windows filesystem sandbox, a restr
 flowchart LR
     A["Choose an action"] --> B["Refresh facts and check permission"]
     B --> C["Review targets, effects and command"]
-    C --> D["Run reviewed operation"]
+    C --> D["Confirm and run this step"]
     D --> E["Recheck content, refs and access"]
     E --> F["Execute typed operation"]
     F --> G["Inspect result and postconditions"]
@@ -323,7 +323,7 @@ There is no blanket promise that a preview remains valid for a fixed number of m
 
 | Control | Effect |
 | --- | --- |
-| **Run reviewed operation** | Attempts the exact reviewed operation after execution-time checks. |
+| **Confirm and run this step** | Attempts the exact reviewed operation after execution-time checks. |
 | **Cancel review** | Returns to the page without executing that reviewed write. |
 | **Cancel running operation** | Requests cancellation of the app-owned active work; it does not rewind Git effects. |
 | Navigate away from a review | Changes the visible page; do not interpret this as a verified rollback of a running operation. |
@@ -406,7 +406,7 @@ The viewer is an inspection aid. It is not a general file editor, a binary merge
 
 ### 10.3 Staging
 
-**Where:** Changes → select paths under Unstaged and new files → **Review staging selected files**.  
+**Where:** Changes → select paths under Unstaged and new files → **Preview adding chosen files (stage)**.  
 **Access:** Allow changes and trusted configuration.  
 **Inputs:** One or more exact displayed paths.  
 **Effect:** Adds those saved contents, including reviewed deletions, to the index.
@@ -422,7 +422,7 @@ The app does not substitute a broad `git add .` for the selected paths. It rejec
 
 ### 10.4 Unstaging
 
-Select paths under Staged contents and choose **Review unstaging selected files**. The operation removes those paths from the next commit while preserving working files. For a branch with history, it restores that index selection from the reviewed HEAD; before the first commit, it removes the selected cached entries.
+Select paths under Staged contents and choose **Preview taking chosen files out (unstage)**. The operation removes those paths from the next commit while preserving working files. For a branch with history, it restores that index selection from the reviewed HEAD; before the first commit, it removes the selected cached entries.
 
 Unstaging is not deleting a file and is not discarding an edit. This UI does not offer a blanket discard/reset button.
 
@@ -432,7 +432,7 @@ If another tool changes a selected file or the staging area after review, execut
 
 ## 11. Ignore suggestions and private files
 
-**Where:** Changes → **Review ignore suggestions**.  
+**Where:** Changes → **Choose files to never save (ignore)**.  
 **Access to inspect suggestions:** Local inspection.  
 **Access to apply:** Allow changes and a reviewed operation.
 
@@ -455,7 +455,7 @@ Suggestions are aids, not comprehensive secret detection or a complete emulator 
 
 ## 12. Saving a local version with a commit
 
-**Where:** Changes → **Write commit message** → **Review local commit**.  
+**Where:** Changes → **Describe this version** → **Preview saving this version (commit)**.  
 **Access:** Allow changes.  
 **Required facts:** Staged contents, no unresolved conflicts, an author identity and a nonempty valid message.
 
@@ -472,7 +472,7 @@ After a successful result, expect a new local commit with a new identity and the
 
 The verifier compares the resulting committed content with the reviewed index and checks the current branch and immediate parent. If a hook changes the branch, ancestry or contents, the app can report OutcomeUnknown even when Git returned success.
 
-For an empty-stage error, stage intended contents first. For an identity error, use Remote and author setup. For a hook/signing error, inspect its output and configured tools; do not disable them blindly.
+For an empty-stage error, stage intended contents first. For an identity error, use Your name and online copy (setup). For a hook/signing error, inspect its output and configured tools; do not disable them blindly.
 
 ## 13. Checking a remote with fetch
 
@@ -587,13 +587,13 @@ A filter can hide the displayed endpoint of a parent line. The line does not imp
 
 ## 17. Creating branches, switching and task intent
 
-The Branches page lists local branches and fetched remote copies in Read-only, Monitor only and Allow changes. Select a row and choose **View selected branch history** to inspect only that branch's recorded ancestry. This reads local commits at the selected exact tip; it does not check out that branch, fetch, change the index or edit working files. The History graph states which branch is being viewed and which branch remains checked out. **Show current branch and team copy** restores the usual relationship view. A fetched branch reflects an earlier remote check, not a live server query.
+The Branches page lists local branches and fetched remote copies in Read-only, Monitor only and Allow changes. Select a row and choose **See saved versions on this line of work** to inspect only that branch's recorded ancestry. This reads local commits at the selected exact tip; it does not check out that branch, fetch, change the index or edit working files. The History graph states which branch is being viewed and which branch remains checked out. **Show current branch and team copy** restores the usual relationship view. A fetched branch reflects an earlier remote check, not a live server query.
 
 If the selected tip changes before it can be validated, refresh the inventory and choose it again. Missing partial-clone objects are reported as unavailable: inspection disables Git's implicit lazy fetch. This process-scoped safeguard prevents a read action from silently retrieving missing repository objects.
 
 ### 17.1 Creating a branch
 
-**Where:** Branches → **New branch name** and **Base commit or branch** → **Review creating branch**.  
+**Where:** Branches → **Name for the new line of work (branch), e.g. try-new-colors** and **Base commit or branch** → **Preview creating a new line of work (branch)**.  
 **Access:** Allow changes.  
 **Effect:** Creates a new local name at the exact reviewed base commit.
 
@@ -603,7 +603,7 @@ For a detached checkout, a named branch can preserve a deliberate base. Select t
 
 ### 17.2 Switching
 
-Select an existing local branch and choose **Review switching to selected local branch**. The guided path requires a clean reviewed state and checks the exact target commit. It does not guess a remote-tracking branch or create a matching local branch implicitly.
+Select an existing local branch and choose **Preview switching to this line of work (branch)**. The guided path requires a clean reviewed state and checks the exact target commit. It does not guess a remote-tracking branch or create a matching local branch implicitly.
 
 Switching can change checked-out files. Untracked/ignored collision protection can block it. Preserve unfinished work before switching.
 
@@ -611,7 +611,7 @@ This build does not expose guided branch deletion, rename, arbitrary history rew
 
 ### 17.3 Task intent
 
-**Intended branch for this task (optional)** lets you tell the app which branch the task belongs on. **Save task branch intent** stores that session intention; it does not switch branches.
+**Which line of work should this task use? (optional)** lets you tell the app which branch the task belongs on. **Remember this line of work for the task** stores that session intention; it does not switch branches.
 
 The engine warns about a wrong branch only when this intention has been explicitly configured. It does not infer the correct branch from a folder name or assume that every team uses `main`.
 
@@ -622,7 +622,7 @@ Divergence means both sides have committed versions absent from the other side. 
 1. Preserve local edits.
 2. Check the relevant remote.
 3. Compare the two histories and shared ancestor.
-4. Open **Review integration options**.
+4. Open **See ways to combine work (merge)**.
 5. Inspect the current branch, fetched upstream and exact target.
 6. Choose **Preview merge of fetched upstream**.
 7. Run only the reviewed merge you intend.
@@ -646,11 +646,11 @@ The guided Continue/Abort buttons support a recorded merge. Other recorded opera
 ### 19.2 Resolve a merge conflict
 
 1. Read the interrupted-operation context and conflicted path list.
-2. Use **Reveal file in Explorer** to select an affected file.
+2. Use **Show file in folder** to select an affected file.
 3. Open it in your chosen editor and decide the intended result.
 4. Inspect both sides where needed. Binary and rename/delete conflicts can require developer assistance.
 5. Save the resolved file.
-6. Choose **Review resolved file** and stage that exact resolution.
+6. Choose **Preview marking this file as fixed** and stage that exact resolution.
 7. Repeat for every unmerged path.
 8. Review **continuing the merge**.
 9. Inspect the completed history and project before upload.
@@ -659,9 +659,9 @@ Revealing uses a fixed Windows Explorer executable and validated relative path. 
 
 ### 19.3 Continue or abort
 
-**Review continuing the merge** is available only for a recorded merge with no remaining unmerged paths. It commits the whole reviewed index using the recorded merge message.
+**Preview finishing the combine (merge)** is available only for a recorded merge with no remaining unmerged paths. It commits the whole reviewed index using the recorded merge message.
 
-**Review aborting the merge** applies only to the recorded merge. Git attempts to restore the earlier state; edits made during resolution need inspection. Abort is not a universal backup.
+**Preview cancelling the combine (abort merge)** applies only to the recorded merge. Git attempts to restore the earlier state; edits made during resolution need inspection. Abort is not a universal backup.
 
 ### 19.4 Stash-apply conflicts
 
@@ -671,7 +671,7 @@ Do not use Continue merge for a non-merge stash conflict. Resolve and inspect th
 
 ## 20. Preserving unfinished work with a stash
 
-**Where:** Changes → **Preserve work with a stash**.  
+**Where:** Changes → **Set work aside (stash) for later**.  
 **Access:** Allow changes.  
 **Purpose:** Save unfinished tracked edits locally so another reviewed operation can proceed.
 
@@ -691,7 +691,7 @@ If untracked files were excluded, they can remain in the working folder and stil
 
 ### 20.2 Restoring
 
-The UI offers **Review restoring this specific stash** for the app-created stash known in the current session. Restoration requires a clean state and applies that identity with its index state.
+The UI offers **Preview bringing set-aside work back (stash)** for the app-created stash known in the current session. Restoration requires a clean state and applies that identity with its index state.
 
 After apply, the stash is retained. GitCompass does not automatically drop it. Verify all intended contents and resolve any conflicts before deciding separately what to retain.
 
@@ -701,7 +701,7 @@ This session-specific control is not a full browser of every historical stash. A
 
 ### 21.1 Starting a new repository
 
-For a candidate folder, Overview offers an **Initial branch** input and **Review initialization**. The suggested input is `main`, but the user chooses the authorized name.
+For a candidate folder, Overview offers an **Initial branch** input and **Preview starting version saving here (git init)**. The suggested input is `main`, but the user chooses the authorized name.
 
 Initialization creates metadata in that exact folder. It does not stage, commit or upload existing files. Review ignore rules, private configuration and local author identity before the first commit.
 
@@ -738,19 +738,19 @@ Creating a hosted GitHub repository itself is outside this UI's guided scope. Su
 
 ## 22. Author identity and remote setup
 
-**Where:** Overview → **Remote and author setup**.
+**Where:** Overview → **Your name and online copy (setup)**.
 
 | Field/control | Meaning and validation |
 | --- | --- |
-| Commit author name | Your attribution for new commits; single-line input. |
-| Commit author email | Your own single-line email-like value, including `@`; not a GitHub password. |
-| Review author identity change | Writes only this repository's `user.name` and `user.email`. |
+| Your name (shown on each saved version) | Your attribution for new commits; single-line input. |
+| Your email (shown on each saved version) | Your own single-line email-like value, including `@`; not a GitHub password. |
+| Preview saving your name and email | Writes only this repository's `user.name` and `user.email`. |
 | Remote name | Explicit local connection name; `origin` is suggested, not assumed as policy. |
-| Authorized repository URL | Destination supplied by you or the team. |
+| Web address of the online copy (repository URL) | Destination supplied by you or the team. |
 | Tracking branch | Optional; blank configures only the remote. |
-| Review remote configuration | Adds the new remote and optionally the reviewed current-branch tracking keys. |
+| Preview connecting the online copy (remote) | Adds the new remote and optionally the reviewed current-branch tracking keys. |
 | Publication destination branch | Explicit branch for the initial push. |
-| Review initial branch push | Separate publication review and verification. |
+| Preview your first upload (push) | Separate publication review and verification. |
 
 Author identity does not change past commits and does not alter global Git settings. GitHub sign-in does not fill it automatically.
 
@@ -790,9 +790,9 @@ Tokens are held in current-user protected local storage. Refresh and device poll
 
 ### 23.3 Reading requests and status
 
-Enter the **Target repository owner** and **Target repository name**, then choose **Read pull requests**. This hosted read requires Monitor only or Allow changes and valid authorization.
+Enter the **Target repository owner** and **Target repository name**, then choose **See review requests (pull requests)**. This hosted read requires Monitor only or Allow changes and valid authorization.
 
-The open-request list shows number, title, source-to-target branch, state, draft/readiness and reported mergeability. **Read status, reviews, and checks** retrieves further details.
+The open-request list shows number, title, source-to-target branch, state, draft/readiness and reported mergeability. **Check status, reviews and tests** retrieves further details.
 
 Enter a positive **Pull request number** to read a closed or merged request as well. Missing mergeability remains pending/unknown. Restricted reviews/checks are shown as unavailable, not passing. Empty returned lists do not invent successful reviews.
 
@@ -816,10 +816,10 @@ Workflow:
 1. Save the intended source commit locally.
 2. Publish it to the explicit source repository/branch.
 3. Enter target/source details and the request text.
-4. Choose **Review pull request submission** with Allow changes.
+4. Choose **Preview sending the review request (pull request)** with Allow changes.
 5. The adapter verifies that the chosen published branch points to the current local HEAD.
 6. Inspect the exact repositories, branches, verified commit, title, description and draft state.
-7. Choose **Submit reviewed pull request**.
+7. Choose **Send this review request (pull request)**.
 8. Access, local fingerprint and published source are rechecked before submission.
 9. Read the created or matching-existing request result.
 
@@ -911,7 +911,7 @@ GitHub activity records purpose and result labels, not token-bearing HTTP bodies
 
 ### 27.3 Problems
 
-Problems provides attributed failure cards with **Review operation output** and **Prepare reviewed support information**. Up to forty visible problem cards are retained. The origin is kept so switching projects does not turn another project's failure into the current project's problem.
+Problems provides attributed failure cards with **See full details** and **Get help: make a summary to share**. Up to forty visible problem cards are retained. The origin is kept so switching projects does not turn another project's failure into the current project's problem.
 
 An error display is not a recovery command. It explains where to inspect; the user still chooses the next action.
 

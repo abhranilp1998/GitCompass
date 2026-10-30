@@ -34,9 +34,9 @@ Read the three facts separately: changed files are work in your folder, incoming
 - **Monitor only:** permitted fetch and hosted reads after setup; no commit/update/push or shell.
 - **Allow changes:** reviewed operations and real interactive PowerShell for this app session.
 
-View branch names, history, comparisons and diffs in Read-only or Monitor only. In **Branches**, select a row and choose **View selected branch history**. This does not switch branches or change checked-out files. **Review switching to selected local branch** is a separate action requiring Allow changes. Fetched remote branches show cached information, not a live server view.
+View branch names, history, comparisons and diffs in Read-only or Monitor only. In **Branches**, select a row and choose **See saved versions on this line of work**. This does not switch branches or change checked-out files. **Preview switching to this line of work (branch)** is a separate action requiring Allow changes. Fetched remote branches show cached information, not a live server view.
 
-For a folder without Git, the header says **Not using Git**. Git pages offer learning and **Review ways to start using Git**; opening those pages does not initialize the folder. Remote checks and periodic monitoring are unavailable until a working Git repository exists. A Git project without a remote or GitHub account can still be used for local commits and history.
+For a folder without Git, the header says **Not using Git**. Git pages offer learning and **Start saving versions here**; opening those pages does not initialize the folder. Remote checks and periodic monitoring are unavailable until a working Git repository exists. A Git project without a remote or GitHub account can still be used for local commits and history.
 
 Selecting a more restrictive mode revokes queued actions immediately. If an app-owned operation or shell is active, the mode transition remains pending until that activity has ended. Permission mode is separate from trusting the repository's hooks, filters and configured transport helpers. Allow changes never automatically runs a Git action.
 
@@ -44,13 +44,13 @@ Selecting a more restrictive mode revokes queued actions immediately. If an app-
 
 1. Open the project and verify its branch and access mode. Save files in your usual editor.
 2. If desired, enable Monitor only and check remote. Read cached/fresh labels.
-3. Review changed files and staged contents. Stage only the contents intended for the next version.
+3. See your changed files and staged contents. Stage only the contents intended for the next version.
 4. Enable Allow changes, enter a meaningful commit message, review the preview, and save the version locally.
 5. Check remote and read the new plan. Committing while behind may create divergence that needs integration review.
 6. Review the displayed destination and outgoing history before a normal push.
 7. Verify the result, then lock back to Monitor only or Read-only.
 
-If the histories diverge, review both paths from their common ancestor. Preserve local edits before integration. A conflicted merge stops normal synchronization. Use **Reveal file in Explorer**, then choose your usual editor to review the affected file. GitCompass reveals the file instead of running a script or executable from the project. Edit the intended resolution, review and stage completed paths, then review Continue merge. Abort is operation-specific recovery, not a universal backup.
+If the histories diverge, review both paths from their common ancestor. Preserve local edits before integration. A conflicted merge stops normal synchronization. Use **Show file in folder**, then choose your usual editor to review the affected file. GitCompass reveals the file instead of running a script or executable from the project. Edit the intended resolution, review and stage completed paths, then review Continue merge. Abort is operation-specific recovery, not a universal backup.
 
 Ignoring a file prevents new untracked contents from being added by ordinary staging. It does not remove already tracked files or old copies from history. Private configuration and possible credentials need their own review. Keep original ZIP copies while migrating; do not merge unrelated histories automatically.
 
@@ -68,9 +68,9 @@ Prepare support view shows a redacted summary to review before saving locally or
 
 ## First publication or a ZIP working copy
 
-If the folder has no repository, keep a dated backup first. Review the initialization folder and initial branch, then explicitly enable Allow changes and initialize. Review ignore suggestions and files, enter your own commit author name/email, select intended contents, inspect staged work and save a local commit. Author identity is separate from signing in.
+If the folder has no repository, keep a dated backup first. Review the initialization folder and initial branch, then explicitly enable Allow changes and initialize. Choose files to never save (ignore) and files, enter your own commit author name/email, select intended contents, inspect staged work and save a local commit. Author identity is separate from signing in.
 
-Use **Remote and author setup** to enter an authorized existing remote and publication branch. Review the initial branch push. A successful result must confirm the published commit at the displayed branch. Verify a separate clean clone before retiring the old working copy or backup. The first commit records the selected current snapshot; ZIP dates do not create genuine historical Git commits.
+Use **Your name and online copy (setup)** to enter an authorized existing remote and publication branch. Review the initial branch push. A successful result must confirm the published commit at the displayed branch. Verify a separate clean clone before retiring the old working copy or backup. The first commit records the selected current snapshot; ZIP dates do not create genuine historical Git commits.
 
 If the team already has a canonical repository, clone it into a separate empty folder. Preserve the ZIP copy, compare its files with the clone, and copy only reviewed working changes into the clone. Exclude Git metadata, private configuration and generated files. Review, stage, commit and upload those changes using the team's branch rules. Never copy an old `.git` directory over the new clone or automatically combine unrelated histories.
 
