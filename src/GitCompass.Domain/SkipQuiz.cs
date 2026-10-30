@@ -1,4 +1,4 @@
-namespace GitCompass.Desktop;
+namespace GitCompass.Domain;
 
 public sealed record QuizQuestion(string Prompt, string[] Choices, int Correct, string Explanation);
 public sealed record QuizGreeting(string Title, string Subtitle);

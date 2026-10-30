@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using GitCompass.Domain;
+using GitCompass.Infrastructure.Git;
 using GitCompass.Infrastructure.Local;
 using Microsoft.Win32;
 
@@ -50,6 +51,17 @@ public partial class ShellWindow
     private async Task OnBeginnerOperationCompletedAsync(OperationKind kind, OperationState state)
     {
         if (!beginner.Active || !IsGuideProject || model.Snapshot is null || state != OperationState.Succeeded) return;
+        if (IsPracticeProject)
+        {
+            var next = BeginnerMissions.Advance(beginner.MissionIndex, kind, state);
+            if (next != beginner.MissionIndex)
+            {
+                beginner = beginner with { MissionIndex = next, SavedCommitId = kind == OperationKind.Commit ? model.Snapshot.HeadId : beginner.SavedCommitId };
+                await SaveBeginnerAsync();
+                Banner(next == BeginnerMissions.Done ? "All missions complete. Open the walkthrough for your recap." : "Mission complete. Next: " + BeginnerMissions.Missions[next].Title + ". Return to the walkthrough when you are ready.");
+            }
+            return;
+        }
         if (kind == OperationKind.Commit && model.Snapshot.HeadId is not null)
         {
             beginner = beginner with { SavedCommitId = model.Snapshot.HeadId };
@@ -265,6 +277,7 @@ public partial class ShellWindow
             if (setupError is not null) { AddCard(PageContent, setupError); PageContent.Children.Add(Action("Open setup settings", () => Navigate("Settings"))); }
             return;
         }
+        if (IsPracticeProject) { BuildMissions(); return; }
         var snapshot = model.Snapshot;
         var nextActionIndex = PageContent.Children.Count;
         // This is a historical record of a successful reviewed save, independent of
@@ -354,23 +367,83 @@ public partial class ShellWindow
     private async Task CreatePracticeAtAsync(string parent)
     {
         if (workspace is null || model.Busy) return;
+        var executable = settings.GitExecutablePath ?? DependencyProbe.FindGitExecutable();
+        if (executable is null) { Banner(setupError ?? "Set up Git first to create a practice project."); Navigate("Settings"); return; }
         string? folder = null;
-        var created = false;
         await WorkAsync(async () =>
         {
             // Inspect before writing sample files, so practice cannot change a real repository.
             var parentSnapshot = await workspace.OpenAsync(parent);
             if (parentSnapshot.Project.Kind != RepositoryKind.Candidate)
             { Banner("Choose a location outside an existing Git project. Practice should have its own separate folder."); return; }
-            folder = Path.Combine(Path.GetFullPath(parent), "GitCompass practice " + DateTime.Now.ToString("yyyy-MM-dd HHmmss") + " " + Guid.NewGuid().ToString("N")[..6]);
-            Directory.CreateDirectory(folder);
-            await File.WriteAllTextAsync(Path.Combine(folder, "Learning-notes.txt"), "My first saved version\n\nI am learning to keep versions on my computer.\nSaving locally and sharing online are separate steps.\n");
-            beginner = beginner with { Active = true, WelcomeDismissed = true, ProjectFolder = folder, Intent = "OwnFiles", PracticeFolder = folder, TeamCopyFolder = null, SavedCommitId = null };
+            try { folder = await PracticeProject.CreateAsync(executable, parent); }
+            catch (IOException error) { Banner(error.Message); return; }
+            beginner = beginner with { Active = true, WelcomeDismissed = true, ProjectFolder = folder, Intent = "OwnFiles", PracticeFolder = folder, TeamCopyFolder = null, SavedCommitId = null, MissionIndex = BeginnerMissions.SeeChange, PushOffered = false };
             await SaveBeginnerAsync();
-            created = true;
         });
-        if (!created || folder is null) return;
+        if (folder is null) return;
         await OpenProjectAsync(folder);
         Navigate("Walkthrough");
+    }
+
+    private bool IsPracticeProject => model.Snapshot is not null && SameFolder(beginner.PracticeFolder, model.Snapshot.Project.SelectedFolder);
+
+    private async Task SetMissionAsync(int index, string? page = null)
+    {
+        beginner = beginner with { MissionIndex = BeginnerMissions.Clamp(index) };
+        await SaveBeginnerAsync();
+        if (page is null) RenderPage(); else Navigate(page);
+    }
+
+    private void BuildMissions()
+    {
+        var index = BeginnerMissions.Clamp(beginner.MissionIndex);
+        Heading("Practice missions", index >= BeginnerMissions.Done ? "All missions complete." : $"Mission {index + 1} of {BeginnerMissions.Count} · every change is reviewed before it runs.");
+        var top = Row(); top.Children.Add(Action("Pause walkthrough", PauseBeginnerAsync)); top.Children.Add(Action("Exit walkthrough", PauseBeginnerAsync)); PageContent.Children.Add(top);
+        if (index >= BeginnerMissions.Done)
+        {
+            var recap = new StackPanel(); Subheading(recap, "You did it");
+            foreach (var mission in BeginnerMissions.Missions) Text(recap, "✓ " + mission.Title + " — " + mission.Concept, true);
+            recap.Children.Add(Action("Open my own project", () => PickFolder(this, new RoutedEventArgs()), true));
+            recap.Children.Add(Action("Finish walkthrough", PauseBeginnerAsync));
+            Text(recap, "The practice folder stays at " + beginner.PracticeFolder + ". You can delete it yourself at any time.", true);
+            AddCard(PageContent, recap);
+            return;
+        }
+        var access = new StackPanel(); Subheading(access, "Project access"); ExplainBeginnerAccess(access);
+        if (workspace is not null && model.Snapshot is not null)
+        {
+            var grant = workspace.Access.Get(model.Snapshot.ProjectId);
+            AddGuideSection(access, "Project access · " + AccessText(grant.Level), grant.Level == AccessLevel.AllowChanges && grant.PendingLevel is null);
+        }
+        for (var i = 0; i < BeginnerMissions.Count; i++)
+        {
+            var mission = BeginnerMissions.Missions[i];
+            var content = new StackPanel(); Subheading(content, $"{i + 1}. {mission.Title}");
+            if (i == index)
+            {
+                Text(content, mission.Goal); Text(content, mission.Concept, true);
+                var actions = Row();
+                switch (i)
+                {
+                    case BeginnerMissions.SeeChange: actions.Children.Add(Action("Open Changed files", () => SetMissionAsync(BeginnerMissions.ViewedChanges(index), "Changes"), true)); break;
+                    case BeginnerMissions.Stage: case BeginnerMissions.Commit: actions.Children.Add(Action("Open Changed files", () => Navigate("Changes"), true)); break;
+                    case BeginnerMissions.BranchMerge:
+                        Text(content, "Files follow the branch you are on. Switching back to main hides ideas.txt until you merge; nothing is lost.", true);
+                        actions.Children.Add(Action("Open Branches", () => Navigate("Branches"), true));
+                        actions.Children.Add(Action("Open history graph", () => Navigate("History graph")));
+                        actions.Children.Add(Action("Learn about merging", () => ShowLesson("git-merge")));
+                        break;
+                    case BeginnerMissions.Push:
+                        Text(content, "Optional. Use an empty repository you own. Your practice files become visible to anyone who can see that repository.", true);
+                        actions.Children.Add(Action("Set up an online connection", BuildProjectSetup));
+                        actions.Children.Add(Action("Finish without uploading", () => SetMissionAsync(BeginnerMissions.FinishWithoutPush(index)), true));
+                        break;
+                }
+                content.Children.Add(actions);
+            }
+            else Text(content, i < index ? "Complete. " + mission.Concept : "Coming up.", true);
+            AddGuideSection(content, $"{i + 1}. {mission.Title}" + (i < index ? " · done" : i == index ? " · now" : ""), i != index);
+        }
     }
 }

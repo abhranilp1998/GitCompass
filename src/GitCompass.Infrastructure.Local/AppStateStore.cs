@@ -19,7 +19,8 @@ public sealed record RecentProject(string Folder, string DisplayName, DateTimeOf
 public sealed record ProjectListRecord(int SchemaVersion, RecentProject[] Projects);
 public sealed record BeginnerGuideState
 {
-    public int SchemaVersion { get; init; } = 1;
+    public const int CurrentSchemaVersion = 2;
+    public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public bool WelcomeDismissed { get; init; }
     public bool Active { get; init; }
     public string? ProjectFolder { get; init; }
@@ -27,6 +28,14 @@ public sealed record BeginnerGuideState
     public string? TeamCopyFolder { get; init; }
     public string? PracticeFolder { get; init; }
     public string? SavedCommitId { get; init; }
+    /// <summary>Practice mission index (0–5, see BeginnerMissions). Added in schema 2.</summary>
+    public int MissionIndex { get; init; }
+    public bool PushOffered { get; init; }
+
+    /// <summary>Upgrades a schema 1 record. A recorded first save means the stage and commit missions are complete.</summary>
+    public static BeginnerGuideState Migrate(BeginnerGuideState guide) => guide.SchemaVersion == 1
+        ? guide with { SchemaVersion = CurrentSchemaVersion, MissionIndex = guide.SavedCommitId is null ? 0 : 3 }
+        : guide;
 }
 public sealed class AppStateException(string message, string preservedPath) : Exception(message)
 {
@@ -64,7 +73,7 @@ public sealed class AppStateStore
     }
     public async Task<BeginnerGuideState> LoadBeginnerGuideAsync(CancellationToken cancellationToken = default)
     {
-        var guide = await ReadAsync("beginner-guide.json", new BeginnerGuideState(), cancellationToken).ConfigureAwait(false);
+        var guide = BeginnerGuideState.Migrate(await ReadAsync("beginner-guide.json", new BeginnerGuideState(), cancellationToken).ConfigureAwait(false));
         if (!ValidGuide(guide)) throw new AppStateException("This walkthrough record is unsupported. The original file is preserved.", Path.Combine(Root, "beginner-guide.json"));
         return guide;
     }
@@ -73,7 +82,7 @@ public sealed class AppStateStore
         if (!ValidGuide(guide)) throw new ArgumentException("Unsupported walkthrough schema or project intent.");
         return WriteAsync("beginner-guide.json", guide, cancellationToken);
     }
-    private static bool ValidGuide(BeginnerGuideState guide) => guide.SchemaVersion == 1 && (guide.Intent is "" or "OwnFiles" or "TeamCopy") &&
+    private static bool ValidGuide(BeginnerGuideState guide) => guide.SchemaVersion == BeginnerGuideState.CurrentSchemaVersion && guide.MissionIndex is >= 0 and <= 5 && (guide.Intent is "" or "OwnFiles" or "TeamCopy") &&
         ValidGuidePath(guide.ProjectFolder) && ValidGuidePath(guide.TeamCopyFolder) && ValidGuidePath(guide.PracticeFolder);
     private static bool ValidGuidePath(string? path)
     {
