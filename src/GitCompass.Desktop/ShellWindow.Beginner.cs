@@ -112,6 +112,11 @@ public partial class ShellWindow
                 await SaveBeginnerAsync();
                 PickFolder(this, new RoutedEventArgs());
                 break;
+            case SkipQuizOutcome.CloneRepository:
+                beginner = beginner with { WelcomeDismissed = true };
+                await SaveBeginnerAsync();
+                await ChooseCloneDestinationAsync();
+                break;
         }
     }
 
