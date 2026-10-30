@@ -42,6 +42,8 @@ jobs:
           "VERSION=$declared" >> $env:GITHUB_ENV
       - name: Build, test and package
         shell: pwsh
+        env:
+          GITCOMPASS_GITHUB_CLIENT_ID: ${{ vars.GITCOMPASS_GITHUB_CLIENT_ID }}
         run: ./scripts/build.ps1 -Publish -ManualVersion '${{ env.MANUAL_VERSION }}'
       - name: Verify package
         shell: pwsh
