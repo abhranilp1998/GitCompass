@@ -15,7 +15,7 @@ on:
   # release branch that touches this workflow or the release notes packages the version in Directory.Build.props.
   push:
     branches: [gittu/beginner-onboarding]
-    paths: ['.github/workflows/release.yml', 'docs/release-notes/**']
+    paths: ['.github/workflows/release.yml', 'docs/release-notes/**', 'scripts/package.ps1', 'scripts/build.ps1']
 
 env:
   MANUAL_VERSION: ${{ inputs.manual_version || '0.1.1' }}
