@@ -18,7 +18,6 @@ on:
     paths: ['.github/workflows/release.yml', 'docs/release-notes/**']
 
 env:
-  VERSION: ${{ inputs.version || '0.2.0' }}
   MANUAL_VERSION: ${{ inputs.manual_version || '0.1.1' }}
 
 permissions:
@@ -33,11 +32,14 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - name: Check version input
+      - name: Resolve version
         shell: pwsh
         run: |
           $declared = ([xml](Get-Content -Raw Directory.Build.props)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-          if ($declared -ne '${{ env.VERSION }}') { throw "Input version ${{ env.VERSION }} does not match Directory.Build.props ($declared)." }
+          $requested = '${{ inputs.version }}'
+          if ($requested -and $requested -ne $declared) { throw "Input version $requested does not match Directory.Build.props ($declared)." }
+          if (-not (Test-Path "docs/release-notes/$declared.md")) { throw "Missing docs/release-notes/$declared.md" }
+          "VERSION=$declared" >> $env:GITHUB_ENV
       - name: Build, test and package
         shell: pwsh
         run: ./scripts/build.ps1 -Publish -ManualVersion '${{ env.MANUAL_VERSION }}'
