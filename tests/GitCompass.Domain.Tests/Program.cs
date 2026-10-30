@@ -58,4 +58,26 @@ var linkedId = Guid.NewGuid(); access.Register(linkedId, repositoryIdentity: "sa
 access.SetLevel(project.Id, AccessLevel.AllowChanges); access.SetLevel(linkedId, AccessLevel.AllowChanges);
 using (var lease = access.Acquire(project.Id, OperationKind.Commit)) Denied(() => access.Acquire(linkedId, OperationKind.Terminal), "Shared-worktree managed lease atomically blocks another project's terminal");
 using (var lease = access.Acquire(linkedId, OperationKind.Terminal)) Denied(() => access.Acquire(project.Id, OperationKind.Fetch), "Shared-worktree terminal lease atomically blocks another project's metadata operation");
+
+// Skip quiz: never blocks, scores only by correct choice, unanswered counts as missed.
+Check(SkipQuiz.Questions.Length == 3 && SkipQuiz.Greetings.Length >= 5, "Skip quiz has three questions and several playful greetings");
+Check(SkipQuiz.Missed(SkipQuiz.Questions.Select(q => (int?)q.Correct).ToArray()).Length == 0, "All correct answers pass the skip quiz");
+Check(SkipQuiz.Missed([null, null, null]).Length == 3 && SkipQuiz.Missed([]).Length == 3, "Unanswered questions count as missed");
+Check(SkipQuiz.Missed([SkipQuiz.Questions[0].Correct, (SkipQuiz.Questions[1].Correct + 1) % 4, SkipQuiz.Questions[2].Correct]).SequenceEqual([1]), "Only the wrong answer is reported for explanation");
+Check(SkipQuiz.Questions.All(q => q.Correct >= 0 && q.Correct < q.Choices.Length && q.Explanation.Length > 0), "Every quiz question has a valid answer and an explanation");
+Check(Enumerable.Range(0, 50).Select(i => SkipQuiz.PickGreeting(new Random(i))).All(g => SkipQuiz.Greetings.Contains(g)), "Greeting picker only returns defined title/subtitle pairs");
+
+// Practice missions advance only on succeeded reviewed operations, in order.
+var mission = BeginnerMissions.SeeChange;
+Check(BeginnerMissions.Advance(mission, OperationKind.Stage, OperationState.Failed) == BeginnerMissions.SeeChange, "Failed staging does not advance a mission");
+mission = BeginnerMissions.ViewedChanges(mission); Check(mission == BeginnerMissions.Stage, "Viewing changes completes mission 1");
+mission = BeginnerMissions.Advance(mission, OperationKind.Stage, OperationState.Succeeded); Check(mission == BeginnerMissions.Commit, "Successful staging completes mission 2");
+Check(BeginnerMissions.Advance(mission, OperationKind.Merge, OperationState.Succeeded) == BeginnerMissions.Commit, "A merge cannot skip the commit mission");
+mission = BeginnerMissions.Advance(mission, OperationKind.Commit, OperationState.Succeeded); Check(mission == BeginnerMissions.BranchMerge, "Successful commit completes mission 3");
+Check(BeginnerMissions.Advance(mission, OperationKind.Commit, OperationState.Succeeded) == BeginnerMissions.BranchMerge && BeginnerMissions.Advance(mission, OperationKind.CreateBranch, OperationState.Succeeded) == BeginnerMissions.BranchMerge, "Commits and branch creation on the side branch keep mission 4 open until merge");
+Check(BeginnerMissions.Advance(mission, OperationKind.Merge, OperationState.Canceled) == BeginnerMissions.BranchMerge, "A canceled merge keeps mission 4 open");
+mission = BeginnerMissions.Advance(mission, OperationKind.Merge, OperationState.Succeeded); Check(mission == BeginnerMissions.Push, "Successful merge completes mission 4");
+Check(BeginnerMissions.FinishWithoutPush(mission) == BeginnerMissions.Done && BeginnerMissions.Advance(mission, OperationKind.Push, OperationState.Succeeded) == BeginnerMissions.Done, "Mission 5 finishes by push or by choosing not to upload");
+Check(BeginnerMissions.FinishWithoutPush(BeginnerMissions.Stage) == BeginnerMissions.Stage && BeginnerMissions.Clamp(99) == BeginnerMissions.Done && BeginnerMissions.Clamp(-1) == BeginnerMissions.SeeChange, "Out-of-order skips and out-of-range indices are contained");
+Check(BeginnerMissions.Missions.Length == BeginnerMissions.Count && BeginnerMissions.Missions.All(m => m.Concept.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length <= 20), "Five missions, each concept line at most 20 words");
 Console.WriteLine($"{count} domain assertions passed.");

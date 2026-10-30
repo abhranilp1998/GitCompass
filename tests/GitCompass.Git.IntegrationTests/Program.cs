@@ -46,6 +46,27 @@ async Task Success(Guid id, OperationKind kind, ImmutableArray<string> paths = d
 }
 void Write(string root, string file, string content) { var path = Path.Combine(root, file); Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllText(path, content, new UTF8Encoding(false)); }
 
+// Practice project port of scripts/create-practice.ps1.
+{
+    var practiceParent = Path.Combine(fixture, "practice-parent"); Directory.CreateDirectory(practiceParent);
+    var practice = await PracticeProject.CreateAsync(gitPath, practiceParent);
+    Check(Directory.Exists(Path.Combine(practice, ".git")) && File.Exists(Path.Combine(practice, "ideas.txt")), "Practice project is a Git repository with the sample files");
+    Check((await PracticeGit(practice, "rev-list", "--count", "HEAD")).Trim() == "1" && (await PracticeGit(practice, "branch", "--show-current")).Trim() == "main", "Practice project has exactly one saved version on main");
+    var status = await PracticeGit(practice, "status", "--porcelain");
+    Check(status.Contains(" M welcome.txt") && status.Contains("?? ideas.txt") && status.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length == 2, "Practice project shows one edited and one new file");
+    Check((await PracticeGit(practice, "remote")).Trim().Length == 0, "Practice project has no remote");
+    var before = File.ReadAllText(Path.Combine(practice, "welcome.txt"));
+    await Expect<IOException>(() => PracticeProject.CreateAsync(gitPath, practiceParent), "Practice creation refuses an existing folder");
+    Check(File.ReadAllText(Path.Combine(practice, "welcome.txt")) == before, "Refused practice creation leaves the existing folder unchanged");
+}
+async Task<string> PracticeGit(string cwd, params string[] arguments)
+{
+    var info = new ProcessStartInfo(gitPath) { WorkingDirectory = cwd, RedirectStandardOutput = true, UseShellExecute = false };
+    foreach (var argument in arguments) info.ArgumentList.Add(argument);
+    using var process = Process.Start(info)!; var output = await process.StandardOutput.ReadToEndAsync(); await process.WaitForExitAsync(); return output;
+}
+if (args.Contains("--practice-only")) { Console.WriteLine($"{count} practice assertions passed."); return; }
+
 if (args.Contains("--focused"))
 {
     var local = Path.Combine(fixture, "focused local"); var remote = Path.Combine(fixture, "focused remote.git"); Directory.CreateDirectory(local); Directory.CreateDirectory(remote);

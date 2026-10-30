@@ -88,6 +88,7 @@ internal static class Program
         ((ComboBox)_window.FindName("AccessSelector")).SelectedIndex = (int)AccessLevel.ReadOnly;
         await Until(() => workspace.Access.Get(project.Id).Level == AccessLevel.ReadOnly);
         Check(workspace.Access.Get(project.Id).Level == AccessLevel.ReadOnly, "native selector locks back after local workflow");
+        await BeginnerWorkflowChecks.RunOnboardingStateAsync(Path.Combine(Fixture, "onboarding-state"), Check);
         await BeginnerWorkflowChecks.RunAsync(_window, Path.Combine(Path.GetFullPath(".artifacts"), "native-beginner", Guid.NewGuid().ToString("N")), Check);
     }
 

@@ -43,6 +43,23 @@ internal static class BeginnerWorkflowChecks
         check((await store.LoadSettingsAsync()).Theme == "System", "focused original shell saves System after Light");
     }
 
+    public static async Task RunOnboardingStateAsync(string stateRoot, Action<bool, string> check)
+    {
+        Directory.CreateDirectory(stateRoot);
+        await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":1,\"WelcomeDismissed\":true,\"Active\":true,\"Intent\":\"OwnFiles\",\"SavedCommitId\":\"abc123\"}");
+        var migrated = await new AppStateStore(stateRoot).LoadBeginnerGuideAsync();
+        check(migrated.SchemaVersion == 2 && migrated.MissionIndex == BeginnerMissions.BranchMerge && migrated.SavedCommitId == "abc123", "schema 1 walkthrough with a saved version migrates to schema 2 at the branch mission");
+        await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":1,\"Intent\":\"\"}");
+        check((await new AppStateStore(stateRoot).LoadBeginnerGuideAsync()).MissionIndex == BeginnerMissions.SeeChange, "schema 1 walkthrough without a save migrates to the first mission");
+        var store = new AppStateStore(stateRoot);
+        await store.SaveBeginnerGuideAsync(migrated with { MissionIndex = BeginnerMissions.Push });
+        check((await store.LoadBeginnerGuideAsync()).MissionIndex == BeginnerMissions.Push, "mission index survives save and reload (pause and resume)");
+        await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":2,\"MissionIndex\":9}");
+        try { await store.LoadBeginnerGuideAsync(); check(false, "out-of-range mission index is rejected"); } catch (AppStateException) { check(true, "out-of-range mission index is rejected and the record preserved"); }
+        var small = SkipQuizDialog.FitWithin(640, 560); var large = SkipQuizDialog.FitWithin(1920, 1080);
+        check(small.Width <= 592 && small.MaxHeight <= 512 && large.Width == 560 && large.MaxHeight == 720, "skip quiz dialog fits inside the 640 × 560 minimum window and caps at 560 × 720");
+    }
+
     public static async Task RunAsync(ShellWindow window, string evidenceRoot, Action<bool, string> check)
     {
         var workspace = Field<GitWorkspace>(window, "workspace");
