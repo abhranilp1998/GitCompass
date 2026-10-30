@@ -88,6 +88,21 @@ public partial class ShellWindow
         Navigate("Walkthrough");
     }
 
+    private async Task SkipWithQuizAsync()
+    {
+        var dialog = new SkipQuizDialog(this);
+        dialog.ShowDialog();
+        switch (dialog.Outcome)
+        {
+            case SkipQuizOutcome.StartWalkthrough: await StartBeginnerAsync(); break;
+            case SkipQuizOutcome.OpenProject:
+                beginner = beginner with { Active = false, WelcomeDismissed = true };
+                await SaveBeginnerAsync();
+                PickFolder(this, new RoutedEventArgs());
+                break;
+        }
+    }
+
     private async Task PauseBeginnerAsync()
     {
         beginner = beginner with { Active = false, WelcomeDismissed = true };
@@ -110,7 +125,7 @@ public partial class ShellWindow
         Text(guide, "Choose a folder, understand its history, select your changes, and save a version on this computer. You can pause and return at any time.", true);
         guide.Children.Add(Action(beginner.Active || beginner.ProjectFolder is not null ? "Resume walkthrough" : "Start the walkthrough", beginner.ProjectFolder is null ? StartBeginnerAsync : ResumeBeginnerAsync, !beginner.WelcomeDismissed));
         guide.Children.Add(Action("Practice with a sample project", CreatePracticeProjectAsync));
-        if (!beginner.WelcomeDismissed) guide.Children.Add(Action("Explore without walkthrough", PauseBeginnerAsync));
+        if (!beginner.WelcomeDismissed) guide.Children.Add(Action("Skip — I know Git", SkipWithQuizAsync));
         if (beginner.ProjectFolder is not null) Text(guide, "Walkthrough project: " + beginner.ProjectFolder, true);
         if (beginner.ProjectFolder is not null && !Directory.Exists(beginner.ProjectFolder)) Text(guide, "That folder is no longer available. Choose its new location or another folder to continue.", true);
         AddCard(PageContent, guide);
