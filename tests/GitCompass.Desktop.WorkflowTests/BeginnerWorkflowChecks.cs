@@ -174,6 +174,15 @@ internal static class BeginnerWorkflowChecks
         check(practice != repository && Path.GetDirectoryName(practice) == root && File.Exists(Path.Combine(practice, "Learning-notes.txt")) && !Directory.Exists(Path.Combine(practice, ".git")), "practice creates a separate sample folder without implicitly initializing Git");
         check((await state.LoadBeginnerGuideAsync()).PracticeFolder == practice && (await state.LoadBeginnerGuideAsync()).SavedCommitId is null, "practice state is persisted without inventing a completed version");
         Capture(window, evidenceRoot, "07-practice-folder-light");
+        check(!Texts(window).Any(text => text.Contains("Practice missions")), "the legacy sample folder keeps the ordinary walkthrough, not Git-based missions");
+        var guidedRoot = Path.Combine(root, "guided-practice-parent"); Directory.CreateDirectory(guidedRoot);
+        await InvokeAsync(window, "CreateGuidedPracticeAtAsync", guidedRoot, true);
+        var guided = Snapshot(window)!.Project.RootPath;
+        var guidedState = await state.LoadBeginnerGuideAsync();
+        check(Path.GetDirectoryName(guided) == guidedRoot && Directory.Exists(Path.Combine(guided, ".git")) && guidedState.GuidedPractice && guidedState.PracticeFolder == guided && guidedState.MissionIndex == BeginnerMissions.SeeChange,
+            "only the explicitly reviewed guided action creates a Git-ready practice repository and starts mission 1");
+        window.ConfigureView("Walkthrough", "Light");
+        check(Texts(window).Any(text => text.Contains("Practice missions")), "the guided practice repository shows the practice missions");
 
         await window.OpenProjectAsync(originalRepository); window.ConfigureView("Walkthrough", "Light");
         check(Snapshot(window)!.HeadId is not null && (await state.LoadBeginnerGuideAsync()).SavedCommitId is null && !Texts(window).Any(text => text.Contains("6. Your version is saved on this computer")), "opening a project with existing history does not fabricate first-save completion");

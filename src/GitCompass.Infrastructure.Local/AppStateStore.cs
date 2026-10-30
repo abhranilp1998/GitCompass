@@ -31,6 +31,8 @@ public sealed record BeginnerGuideState
     /// <summary>Practice mission index (0–5, see BeginnerMissions). Added in schema 2.</summary>
     public int MissionIndex { get; init; }
     public bool PushOffered { get; init; }
+    /// <summary>True only for a practice repository created by the explicitly reviewed guided action.</summary>
+    public bool GuidedPractice { get; init; }
 
     /// <summary>Upgrades a schema 1 record. A recorded first save means the stage and commit missions are complete.</summary>
     public static BeginnerGuideState Migrate(BeginnerGuideState guide) => guide.SchemaVersion == 1

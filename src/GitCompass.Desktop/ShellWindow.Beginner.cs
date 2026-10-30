@@ -141,6 +141,7 @@ public partial class ShellWindow
         Subheading(guide, beginner.Active ? "Continue your walkthrough" : "New to Git? Start here");
         Text(guide, "Choose a folder, understand its history, select your changes, and save a version on this computer. You can pause and return at any time.", true);
         guide.Children.Add(Action(beginner.Active || beginner.ProjectFolder is not null ? "Resume walkthrough" : "Start the walkthrough", beginner.ProjectFolder is null ? StartBeginnerAsync : ResumeBeginnerAsync, !beginner.WelcomeDismissed));
+        guide.Children.Add(Action("Create guided practice project", CreateGuidedPracticeProjectAsync));
         guide.Children.Add(Action("Practice with a sample project", CreatePracticeProjectAsync));
         if (!beginner.WelcomeDismissed) guide.Children.Add(Action("Skip — I know Git", SkipWithQuizAsync));
         if (beginner.ProjectFolder is not null) Text(guide, "Walkthrough project: " + beginner.ProjectFolder, true);
@@ -277,6 +278,7 @@ public partial class ShellWindow
             var choose = new StackPanel(); Subheading(choose, "1. Choose a project");
             Text(choose, "Select any folder with your project files, whether it uses Git or not. Or practice with an example in a new folder.", true);
             choose.Children.Add(Action("Select project folder", () => PickFolder(this, new RoutedEventArgs()), true));
+            choose.Children.Add(Action("Create guided practice project", CreateGuidedPracticeProjectAsync));
             choose.Children.Add(Action("Practice with a sample project", CreatePracticeProjectAsync));
             AddCard(PageContent, choose);
             if (setupError is not null) { AddCard(PageContent, setupError); PageContent.Children.Add(Action("Open setup settings", () => Navigate("Settings"))); }
@@ -372,18 +374,53 @@ public partial class ShellWindow
     private async Task CreatePracticeAtAsync(string parent)
     {
         if (workspace is null || model.Busy) return;
-        var executable = settings.GitExecutablePath ?? DependencyProbe.FindGitExecutable();
-        if (executable is null) { Banner(setupError ?? "Set up Git first to create a practice project."); Navigate("Settings"); return; }
         string? folder = null;
+        var created = false;
         await WorkAsync(async () =>
         {
             // Inspect before writing sample files, so practice cannot change a real repository.
             var parentSnapshot = await workspace.OpenAsync(parent);
             if (parentSnapshot.Project.Kind != RepositoryKind.Candidate)
             { Banner("Choose a location outside an existing Git project. Practice should have its own separate folder."); return; }
+            folder = Path.Combine(Path.GetFullPath(parent), "GitCompass practice " + DateTime.Now.ToString("yyyy-MM-dd HHmmss") + " " + Guid.NewGuid().ToString("N")[..6]);
+            Directory.CreateDirectory(folder);
+            await File.WriteAllTextAsync(Path.Combine(folder, "Learning-notes.txt"), "My first saved version\n\nI am learning to keep versions on my computer.\nSaving locally and sharing online are separate steps.\n");
+            beginner = beginner with { Active = true, WelcomeDismissed = true, ProjectFolder = folder, Intent = "OwnFiles", PracticeFolder = folder, GuidedPractice = false, TeamCopyFolder = null, SavedCommitId = null };
+            await SaveBeginnerAsync();
+            created = true;
+        });
+        if (!created || folder is null) return;
+        await OpenProjectAsync(folder);
+        Navigate("Walkthrough");
+    }
+
+    /// <summary>Walkthrough-only, explicitly confirmed: creates a Git-ready practice repository. The legacy sample folder never initializes Git.</summary>
+    private async Task CreateGuidedPracticeProjectAsync()
+    {
+        if (workspace is null) { Banner(setupError ?? "Set up Git first to create a practice project."); Navigate("Settings"); return; }
+        var picker = new OpenFolderDialog { Title = "Choose where to create the guided practice project", Multiselect = false };
+        if (picker.ShowDialog(this) == true) await CreateGuidedPracticeAtAsync(picker.FolderName, confirmed: false);
+    }
+
+    private async Task CreateGuidedPracticeAtAsync(string parent, bool confirmed)
+    {
+        if (workspace is null || model.Busy) return;
+        var executable = settings.GitExecutablePath ?? DependencyProbe.FindGitExecutable();
+        if (executable is null) { Banner(setupError ?? "Set up Git first to create a practice project."); Navigate("Settings"); return; }
+        var target = Path.Combine(Path.GetFullPath(parent), PracticeProject.FolderName);
+        // Review before any write: this is the only path that runs git init, and only in a new folder.
+        if (!confirmed && MessageBox.Show(this,
+            "GitCompass will create a new folder:\n" + target + "\n\nInside it, Git will set up version history (git init), set a practice author for this folder only, save one first version, then add one edit and one new file for you to practise with.\n\nNo existing folder is changed and nothing is uploaded.",
+            "Review: create practice project", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
+        string? folder = null;
+        await WorkAsync(async () =>
+        {
+            var parentSnapshot = await workspace.OpenAsync(parent);
+            if (parentSnapshot.Project.Kind != RepositoryKind.Candidate)
+            { Banner("Choose a location outside an existing Git project. Practice should have its own separate folder."); return; }
             try { folder = await PracticeProject.CreateAsync(executable, parent); }
             catch (IOException error) { Banner(error.Message); return; }
-            beginner = beginner with { Active = true, WelcomeDismissed = true, ProjectFolder = folder, Intent = "OwnFiles", PracticeFolder = folder, TeamCopyFolder = null, SavedCommitId = null, MissionIndex = BeginnerMissions.SeeChange, PushOffered = false };
+            beginner = beginner with { Active = true, WelcomeDismissed = true, ProjectFolder = folder, Intent = "OwnFiles", PracticeFolder = folder, GuidedPractice = true, TeamCopyFolder = null, SavedCommitId = null, MissionIndex = BeginnerMissions.SeeChange, PushOffered = false };
             await SaveBeginnerAsync();
         });
         if (folder is null) return;
@@ -391,7 +428,7 @@ public partial class ShellWindow
         Navigate("Walkthrough");
     }
 
-    private bool IsPracticeProject => model.Snapshot is not null && SameFolder(beginner.PracticeFolder, model.Snapshot.Project.SelectedFolder);
+    private bool IsPracticeProject => beginner.GuidedPractice && model.Snapshot is not null && SameFolder(beginner.PracticeFolder, model.Snapshot.Project.SelectedFolder);
 
     private async Task SetMissionAsync(int index, string? page = null)
     {
