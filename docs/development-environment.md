@@ -11,7 +11,7 @@ This records the local installation checked on 12 October 2026. Installation met
 | System .NET SDK | **10.0.401**, `C:\Program Files\dotnet\sdk`. Matches the exact `global.json` pin, which disables roll-forward. |
 | System runtimes | .NET and Windows Desktop/WPF **10.0.12**, plus **9.0.20**; ASP.NET Core **10.0.12**, under `C:\Program Files\dotnet\shared`. |
 | Git | `C:\Program Files\Git\cmd\git.exe`; tested version **2.54.0.windows.1**. |
-| VS Code Insiders | `C:\Users\Abhranil\AppData\Local\Programs\Microsoft VS Code Insiders`. Suitable for source editing and the command-line build scripts. |
+| VS Code Insiders | `C:\Users\<you>\AppData\Local\Programs\Microsoft VS Code Insiders`. Suitable for source editing and the command-line build scripts. |
 | Workspace SDK | `.tools\dotnet\dotnet.exe`, SDK **10.0.401**, verified separately from the system installation. The build script prefers it when present. |
 
 The Visual Studio setup registry records shared components at `F:\Dev\VSMicrosoft Visual Studio\Shared` and its package cache at `F:\Dev\VSMicrosoft\VisualStudio\Packages`. The literal folder `F:\Dev\VS` does **not** exist. These are the observed paths; do not infer the IDE installation location from the intended cache/shared-folder name. The IDE itself is installed on `C:` at the path above.
@@ -50,7 +50,7 @@ If `run.ps1` finds the portable executable, it starts it before making these dev
 
 ## Application settings are separate
 
-The SDK and NuGet directories above are development tool caches. GitCompass application settings, recent projects, reviewed/redacted logs and user-bound GitHub credentials use the Windows user's **LocalApplicationData\GitCompass** directory by default (`C:\Users\Abhranil\AppData\Local\GitCompass` for this user). The development `APPDATA` assignment changes a roaming environment variable; it does not redefine the application's LocalApplicationData store or isolate the entire user profile. Test hosts can explicitly supply an isolated application-state directory for fixtures.
+The SDK and NuGet directories above are development tool caches. GitCompass application settings, recent projects, reviewed/redacted logs and user-bound GitHub credentials use the Windows user's **LocalApplicationData\GitCompass** directory by default (`C:\Users\<you>\AppData\Local\GitCompass` for this user). The development `APPDATA` assignment changes a roaming environment variable; it does not redefine the application's LocalApplicationData store or isolate the entire user profile. Test hosts can explicitly supply an isolated application-state directory for fixtures.
 
 The Git executable setting, GitHub App client ID, theme and monitoring preferences belong to GitCompass Settings. Access and repository trust are separate from IDE/environment configuration; **Allow changes** is a session permission and is not saved as a permanent unrestricted grant. Neither choosing an IDE nor building this solution grants the app permission to edit a selected project.
 
