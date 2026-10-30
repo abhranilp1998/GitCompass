@@ -87,4 +87,11 @@ mission = BeginnerMissions.Advance(mission, OperationKind.Merge, OperationState.
 Check(BeginnerMissions.FinishWithoutPush(mission) == BeginnerMissions.Done && BeginnerMissions.Advance(mission, OperationKind.Push, OperationState.Succeeded) == BeginnerMissions.Done, "Mission 5 finishes by push or by choosing not to upload");
 Check(BeginnerMissions.FinishWithoutPush(BeginnerMissions.Stage) == BeginnerMissions.Stage && BeginnerMissions.Clamp(99) == BeginnerMissions.Done && BeginnerMissions.Clamp(-1) == BeginnerMissions.SeeChange, "Out-of-order skips and out-of-range indices are contained");
 Check(BeginnerMissions.Missions.Length == BeginnerMissions.Count && BeginnerMissions.Missions.All(m => m.Concept.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length <= 20), "Five missions, each concept line at most 20 words");
+Check(GitGlossary.Label("commit") == "Save a version (commit)" && GitGlossary.Terms.All(t => t.Everyday.Length > 0 && t.Plain.Split(' ').Length <= 20), "Glossary labels pair an everyday name with the Git word; definitions stay short");
+Check(GitErrorExplainer.Explain("fatal: not a git repository (or any of the parent directories): .git")?.Title == "No saved versions here yet" && GitErrorExplainer.Explain("fatal: Unable to create '.git/index.lock': File exists. Another git process seems to be running")?.Title == "Git is busy" && GitErrorExplainer.Explain("fatal: unable to access 'https://x/': Could not resolve host: x")?.Title == "Can't reach the online copy" && GitErrorExplainer.Fallback.WhatToDo.Length > 0, "More beginner errors explained, with a calm fallback");
+{
+    var dir = new DirectoryInfo(AppContext.BaseDirectory); while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "GitCompass.sln"))) dir = dir.Parent;
+    var readme = dir is null ? "" : File.ReadAllText(Path.Combine(dir.FullName, "README.md")).Replace("\r\n", "\n");
+    Check(readme.Contains(GitGlossary.MarkdownTable()), "README glossary matches the single glossary source (GitGlossary)");
+}
 Console.WriteLine($"{count} domain assertions passed.");

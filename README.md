@@ -12,7 +12,7 @@ Get the latest version from the **[Releases page](https://github.com/abhranilp19
 
 > **Release pending:** no release has been published on that page yet. Until then, build from source (see [docs/DEVELOPING.md](docs/DEVELOPING.md)).
 >
-> The current build is an early test version. It is not digitally signed yet, so Windows may show a warning the first time you open it.
+> The current build is an early test version. It is not digitally signed yet, so Windows may show a blue "Windows protected your PC" box the first time you open it. Choose **More info**, then **Run anyway**.
 
 ## Quick start (3 steps)
 
@@ -35,15 +35,38 @@ Want to practise first? Use a practice project (source builds can create one wit
 
 - **Shows what changed:** see which files you edited since your last saved version.
 - **Helps you save versions:** pick the changes you want, then save them on your computer.
-- **Shows your history** as a simple picture of saved versions and branches.
+- **Shows your history** as a simple picture of saved versions and lines of work (branches).
 
 ![History screen](docs/images/functional-history.png)
 
 - **Suggests the next step**, and shows you what an action will do before it happens.
 - **Keeps you safe:** projects start in Read-only, and you decide when to allow changes.
 - **Has a built-in Learn guide** that works offline.
-- **Works with GitHub (optional):** upload your saved work and view pull requests. Some GitHub features need extra setup for now.
+- **Works with GitHub (optional):** upload your saved work and see review requests (pull requests). Some GitHub features need extra setup for now.
 - **Looks good:** light, dark or system theme, and it fits small windows.
+
+## Words you'll see
+
+GitCompass uses everyday words first and puts the Git word in brackets, like **Save a version (commit)**, so you learn the real words as you go. Hover over a Git word in the app to see what it means.
+
+<!-- glossary:start (generated from src/GitCompass.Domain/GitGlossary.cs; a test keeps it in sync) -->
+| Everyday words | Git word | What it means |
+|---|---|---|
+| Save a version | commit | A saved version of your project, stored on this computer. |
+| Choose files to save | stage | Picking which changed files go into your next saved version. |
+| Line of work | branch | A separate line of work, so you can try ideas without changing the main one. |
+| Combine work | merge | Joining the saved work from one line of work into another. |
+| Upload | push | Sending your saved versions to the online copy. |
+| Get updates | pull | Getting new saved versions from the online copy and adding them to your work. |
+| Check for updates | fetch | Checking the online copy for new saved versions, without changing your files. |
+| Online copy | remote | The online copy of your project, for example on GitHub. It is often named origin. |
+| Download a copy | clone | Downloading a full copy of a project, with all its history, into a new folder. |
+| Set work aside | stash | Putting unfinished edits aside for a while so you can come back to them. |
+| What changed | diff | What changed between two versions: lines taken out and lines added. |
+| Clashing changes | conflict | Two changes touched the same lines, so Git needs you to pick what to keep. |
+| Project with history | repository | A project folder where Git keeps every saved version. Often called a repo. |
+| You are here | HEAD | Where you are right now: usually the newest saved version on your current line of work. |
+<!-- glossary:end -->
 
 ## FAQ
 
@@ -60,7 +83,7 @@ New projects open in Read-only, so GitCompass only looks. When you allow changes
 No. Its safety settings only apply inside GitCompass.
 
 **Windows says the app is unrecognized. Is that normal?**
-Yes, for now. This early version isn't digitally signed yet.
+Yes, for now. This early version isn't digitally signed yet. Choose **More info**, then **Run anyway**.
 
 **Where can I read more?**
 See the [user guide](docs/user-guide.md), or the [full manual](docs/functional-documentation.md) for every screen in detail.
