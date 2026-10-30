@@ -1,9 +1,11 @@
-param([Parameter(Mandatory = $true)][string]$PublishedDirectory)
+# -ManualVersion selects which exported functional manual to bundle when the app version has no regenerated manual yet.
+param([Parameter(Mandatory = $true)][string]$PublishedDirectory, [string]$ManualVersion)
 $ErrorActionPreference = 'Stop'
 $workspace = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 $published = [IO.Path]::GetFullPath($PublishedDirectory)
 if (-not (Test-Path -LiteralPath (Join-Path $published 'GitCompass.exe'))) { throw 'Publish GitCompass before packaging.' }
 $appVersion = ([Version][Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $published 'GitCompass.dll')).FileVersion).ToString(3)
+if (-not $ManualVersion) { $ManualVersion = $appVersion }
 function Copy-Required([string]$Source, [string]$Name) {
     if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) { throw "Required package content is missing: $Source" }
     Copy-Item -LiteralPath $Source -Destination (Join-Path $published $Name)

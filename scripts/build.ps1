@@ -1,4 +1,4 @@
-param([switch]$SkipRestore, [switch]$SkipTests, [switch]$Publish, [switch]$MeasurePerformance)
+param([switch]$SkipRestore, [switch]$SkipTests, [switch]$Publish, [switch]$MeasurePerformance, [string]$ManualVersion)
 $ErrorActionPreference = 'Stop'
 $workspace = Split-Path $PSScriptRoot -Parent
 Set-Location -LiteralPath $workspace
@@ -46,6 +46,6 @@ if ($MeasurePerformance) {
 if ($Publish) {
     $publishStaging = Join-Path $workspace ('.artifacts\publish-' + [guid]::NewGuid().ToString('N'))
     Invoke-Sdk -Arguments @('publish', 'src\GitCompass.Desktop\GitCompass.Desktop.csproj', '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '--no-restore', '-p:PublishSingleFile=false', '-m:1', '-p:UseSharedCompilation=false', '-o', $publishStaging)
-    & (Join-Path $PSScriptRoot 'package.ps1') -PublishedDirectory $publishStaging
+    & (Join-Path $PSScriptRoot 'package.ps1') -PublishedDirectory $publishStaging -ManualVersion $ManualVersion
 }
 

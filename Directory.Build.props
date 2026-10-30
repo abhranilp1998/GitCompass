@@ -6,7 +6,7 @@
     <Deterministic>true</Deterministic>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <Version>0.1.1</Version>
+    <Version>0.2.0</Version>
     <Product>GitCompass</Product>
     <Company>GitCompass</Company>
     <Description>A Windows Git workspace with guidance for beginners.</Description>
