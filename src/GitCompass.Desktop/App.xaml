@@ -56,6 +56,29 @@
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
       <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
     </Style>
+    <!-- Pill-shaped documentation link: themed, hover/pressed states, visible keyboard focus ring. -->
+    <Style x:Key="LinkChip" TargetType="Button">
+      <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Background" Value="{DynamicResource TintBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" /><Setter Property="Padding" Value="12,4" /><Setter Property="Margin" Value="0,4,8,8" />
+      <Setter Property="FontSize" Value="13" /><Setter Property="Cursor" Value="Hand" /><Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Pill" CornerRadius="12" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+              <TextBlock x:Name="Label" Text="{TemplateBinding Content}" TextWrapping="NoWrap" TextDecorations="None" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Label" Property="TextDecorations" Value="Underline" /><Setter TargetName="Pill" Property="Background" Value="{DynamicResource SurfaceBrush}" /></Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Pill" Property="BorderThickness" Value="2" /><Setter TargetName="Label" Property="TextDecorations" Value="Underline" /></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="Pill" Property="Opacity" Value="0.8" /></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
     <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
       <Setter Property="ContentTemplateSelector" Value="{StaticResource ButtonContentSelector}" />
       <Setter Property="Padding" Value="14,8" /><Setter Property="MinHeight" Value="36" />
