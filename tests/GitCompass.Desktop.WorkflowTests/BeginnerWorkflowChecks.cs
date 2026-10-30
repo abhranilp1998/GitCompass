@@ -196,6 +196,8 @@ internal static class BeginnerWorkflowChecks
         var themes = Descendants<ComboBox>(window).Single(item => AutomationProperties.GetName(item) == "Appearance theme"); themes.SelectedItem = "Dark";
         await UntilAsync(window, async () => (await state.LoadSettingsAsync()).Theme == "Dark");
         check(((SolidColorBrush)window.FindResource("WindowBrush")).Color.R < 100, "native appearance control applies the dark palette throughout the shell");
+        // Switching Application.ThemeMode re-templates the visual tree; Loaded is raised asynchronously, so wait for it to settle (bounded by Until).
+        await Until(window, () => AttachedTo(window, Appearance(window)));
         themes = Appearance(window);
         check(AttachedTo(window, themes) && themes.SelectedItem?.ToString() == "Dark", "dropdown coverage operates on the actual attached dark appearance control");
         themes.ApplyTemplate(); themes.IsDropDownOpen = true;
