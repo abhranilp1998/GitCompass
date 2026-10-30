@@ -185,6 +185,9 @@ internal static class BeginnerWorkflowChecks
         check(Texts(window).Any(text => text.Contains("Practice missions")), "the guided practice repository shows the practice missions");
         check(HasButton(window, "Pause walkthrough") && HasButton(window, "Exit walkthrough"), "missions offer a direct Pause and a confirmed Exit");
         check(Descendants<ProgressBar>(window).Any(bar => AutomationProperties.GetName(bar) == "Mission 1 of 5"), "missions show a 'Mission 1 of 5' progress bar");
+        check(Descendants<TextBlock>(window).Any(text => text.ToolTip is string tip && tip.Contains("commit: A saved version")), "Git words on the page carry a glossary tooltip");
+        var catalog = Field<LearningCatalog>(window, "learning");
+        check(GitGlossary.Terms.All(term => catalog.Find(term.LessonId) is not null), "every glossary term links to an existing offline lesson");
         window.ConfigureView("Changes", "Light"); window.UpdateLayout();
         var ideasItem = Descendants<ListBoxItem>(window).First(item => item.Tag is FileState { Path: "ideas.txt" });
         ((ListBox)ItemsControl.ItemsControlFromItemContainer(ideasItem)).SelectedItem = ideasItem; await Until(window, () => IsIdle(window));

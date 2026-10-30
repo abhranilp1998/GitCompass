@@ -372,6 +372,27 @@ public partial class ShellWindow : Window
     }
     private void RenderPage()
     {
+        RenderPageContent();
+        ApplyGlossary(PageContent);
+    }
+    /// <summary>Hover glossary: any text that mentions Git words gets a tooltip with everyday definitions (and the lesson title from the offline catalog).</summary>
+    private void ApplyGlossary(DependencyObject? root)
+    {
+        if (root is null) return;
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        {
+            if (child is TextBlock { ToolTip: null } block && GitGlossary.TermsIn(block.Text) is { Count: > 0 } terms)
+            {
+                var lines = terms.Take(3).Select(t => t.Term + ": " + t.Plain + (learning?.Find(t.LessonId) is { } lesson ? "  (Lesson: " + lesson.Title + ")" : ""));
+                block.ToolTip = string.Join("\n", lines);
+                ToolTipService.SetInitialShowDelay(block, 400);
+                System.Windows.Automation.AutomationProperties.SetHelpText(block, string.Join(" ", terms.Take(3).Select(t => t.Term + ": " + t.Plain)));
+            }
+            ApplyGlossary(child);
+        }
+    }
+    private void RenderPageContent()
+    {
         if (!ready || PageContent is null) return;
         renderGeneration++;
         PageContent.Children.Clear();
