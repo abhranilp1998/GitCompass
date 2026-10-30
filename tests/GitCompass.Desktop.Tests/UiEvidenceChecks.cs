@@ -121,7 +121,7 @@ internal static class UiEvidenceChecks
         Check(Fields().Any(field => field.Text.Contains("git --literal-pathspecs add")), "native preview exposes the underlying selected-file command before execution");
         Capture(root, "stage-preview-light"); Click("Cancel review"); window.UpdateLayout();
         Check(HasButton("Review local commit"), "canceling a review restores Changes without executing it");
-        Click("Review local commit"); await Until(() => ((Border)window.FindName("StatusBanner")).Visibility == Visibility.Visible && Texts().Any(text => text.Contains("Action could not complete")));
+        Click("Review local commit"); await Until(() => ((Border)window.FindName("StatusBanner")).Visibility == Visibility.Visible && Texts().Any(text => text.Contains("That step didn't work")));
         Check(((StackPanel)window.FindName("ProblemsPanel")).Children.Count > 0, "an invalid local commit request produces a visible actionable problem");
         window.ConfigureView("Changes", "Dark"); Capture(root, "actionable-failure-dark");
         ((ComboBox)window.FindName("AccessSelector")).SelectedIndex = (int)AccessLevel.ReadOnly;
@@ -131,7 +131,7 @@ internal static class UiEvidenceChecks
         Checkbox("Mute team-update notifications").IsChecked = true; Checkbox("Use quiet hours for team-update notifications").IsChecked = true;
         Fields().First(field => AutomationProperties.GetName(field).StartsWith("Start hour")).Text = "22";
         Fields().First(field => AutomationProperties.GetName(field).StartsWith("End hour")).Text = "8";
-        Fields().First(field => AutomationProperties.GetName(field).StartsWith("Remote check interval")).Text = "1440";
+        Fields().First(field => AutomationProperties.GetName(field).StartsWith("How often to check for team updates")).Text = "1440";
         Click("Save settings"); var store = new AppStateStore(state);
         await UntilAsync(async () => { var settings = await store.LoadSettingsAsync(); return settings.MuteMonitoringNotifications && settings.QuietHoursStart == 22 && settings.QuietHoursEnd == 8 && settings.FetchIntervalMinutes == 1440; });
         Check(true, "mute, overnight quiet hours and supported check interval persist through actual Settings controls");
@@ -152,18 +152,18 @@ internal static class UiEvidenceChecks
         await window.OpenProjectAsync(candidate);
         ((ComboBox)window.FindName("AccessSelector")).SelectedIndex = (int)AccessLevel.MonitorOnly;
         await Until(() => workspace.Access.Get(candidateProject.Id).Level == AccessLevel.MonitorOnly);
-        Check(((TextBlock)window.FindName("BranchLabel")).Text == "Not using Git" && !((Button)window.FindName("CheckRemoteButton")).IsEnabled, "a plain folder has truthful branch context and no remote-check action even in Monitor only");
+        Check(((TextBlock)window.FindName("BranchLabel")).Text == "Not saving versions yet" && !((Button)window.FindName("CheckRemoteButton")).IsEnabled, "a plain folder has truthful branch context and no remote-check action even in Monitor only");
         foreach (var page in new[] { "Changes", "History graph", "Branches", "Pull requests" })
         {
             window.ConfigureView(page, "Light"); window.UpdateLayout();
-            Check(Texts().Any(text => text.Contains("This folder is not using Git yet")) && HasButton("Review ways to start using Git") && !HasButton("Review local commit") && !HasButton("Review creating branch"), $"non-Git {page} offers learning/setup instead of empty Git controls");
+            Check(Texts().Any(text => text.Contains("This folder doesn't keep saved versions yet")) && HasButton("Start saving versions here") && !HasButton("Review local commit") && !HasButton("Review creating branch"), $"non-Git {page} offers learning/setup instead of empty Git controls");
             Capture(root, "non-git-" + page.Replace(' ', '-').ToLowerInvariant() + "-light");
         }
-        Click("Review ways to start using Git"); await Until(() => HasButton("Review initialization"));
+        Click("Start saving versions here"); await Until(() => HasButton("Review initialization"));
         Check(!Button("Review initialization").IsEnabled && !Directory.Exists(Path.Combine(candidate, ".git")) && Program.Fingerprint(candidate) == candidateBefore, "opening a non-Git setup path does not initialize or alter existing files in Monitor only");
         window.ConfigureView("Settings", "Light"); window.UpdateLayout();
         Check(!Checkbox("Enable periodic remote checks for the current project in this session").IsEnabled, "a non-Git folder cannot enable periodic fetches");
-        ((TabControl)window.FindName("DockTabs")).SelectedIndex = 1; window.UpdateLayout(); Click("Prepare reviewed support information");
+        ((TabControl)window.FindName("DockTabs")).SelectedIndex = 1; window.UpdateLayout(); Click("Get help: make a summary to share");
         await Until(() => HasButton("Save reviewed diagnostic bundle"));
         Check(Texts().Any(text => text.Contains("Project: project-a")) && Fields().Count(field => !field.IsReadOnly && field.Text.Length > 100) >= 2, "a retained problem opens its originating project and exposes both editable support artifacts before saving");
         Capture(root, "reviewed-support-light");

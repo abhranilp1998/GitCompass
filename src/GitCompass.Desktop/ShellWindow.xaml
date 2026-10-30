@@ -113,10 +113,10 @@
               <TextBlock x:Name="ProjectPath" Text="Choose any project folder to begin." Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,6,20,0" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
             </StackPanel>
             <WrapPanel x:Name="HeaderActions" Grid.Column="1" VerticalAlignment="Top">
-              <ComboBox x:Name="AccessSelector" Width="145" SelectionChanged="AccessChanged" AutomationProperties.Name="Project access mode" Margin="0,0,10,0">
-                <ComboBoxItem Content="Read-only" /><ComboBoxItem Content="Monitor only" /><ComboBoxItem Content="Allow changes" />
+              <ComboBox x:Name="AccessSelector" Width="145" SelectionChanged="AccessChanged" AutomationProperties.Name="Project access mode" ToolTip="What GitCompass is allowed to do in this project" Margin="0,0,10,0">
+                <ComboBoxItem Content="Read-only" ToolTip="GitCompass only looks. Nothing in your folder changes." AutomationProperties.HelpText="GitCompass only looks. Nothing in your folder changes." /><ComboBoxItem Content="Monitor only" ToolTip="GitCompass looks and can check the online copy for updates, but never changes your files." AutomationProperties.HelpText="GitCompass looks and can check the online copy for updates, but never changes your files." /><ComboBoxItem Content="Allow changes" ToolTip="GitCompass may save versions or upload, but only after you review each step." AutomationProperties.HelpText="GitCompass may save versions or upload, but only after you review each step." />
               </ComboBox>
-              <Button x:Name="CheckRemoteButton" Content="Check team updates" Click="CheckRemote" Margin="0" />
+              <Button x:Name="CheckRemoteButton" Content="Check team updates" ToolTip="Look at the online copy for new saved versions (fetch). Your files don't change." Click="CheckRemote" Margin="0" />
             </WrapPanel>
           </Grid>
           <Grid x:Name="HeaderStatus" Grid.Row="2" Margin="0,10,0,0">
@@ -182,7 +182,7 @@
                     <MenuItem Header="Paste" Click="PasteTerminal" /><MenuItem Header="Close session" Click="CloseTerminal" />
                   </ContextMenu></Button.ContextMenu>
                 </Button>
-                <TextBlock x:Name="TerminalModeText" Text="Allow changes is required for an interactive terminal." VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
+                <TextBlock x:Name="TerminalModeText" Text="To type commands here, first choose Allow changes at the top." VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
               </WrapPanel>
               <TabControl Grid.Row="1" x:Name="TerminalTabs" />
             </Grid>

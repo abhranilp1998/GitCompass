@@ -184,7 +184,7 @@ public partial class ShellWindow : Window
             var grant = workspace.Access.Get(snapshot.ProjectId);
             AccessSelector.IsEnabled = true; AccessSelector.SelectedIndex = (int)grant.Level;
             var hasWorkingRepository = snapshot.Project.Kind is RepositoryKind.WorkingTree or RepositoryKind.LinkedWorktree;
-            BranchLabel.Text = snapshot.Project.Kind == RepositoryKind.Candidate ? "Not using Git" : snapshot.BranchState == BranchState.Detached ? "Detached HEAD" : snapshot.Branch ?? "No commits yet";
+            BranchLabel.Text = snapshot.Project.Kind == RepositoryKind.Candidate ? "Not saving versions yet" : snapshot.BranchState == BranchState.Detached ? "Viewing an old version (detached HEAD)" : snapshot.Branch ?? "No saved versions yet";
             ProjectPath.Text = snapshot.Project.RootPath + (snapshot.Project.SelectedFolder == snapshot.Project.RootPath ? "" : "  • selected " + snapshot.Project.SelectedFolder);
             ProjectPath.ToolTip = ProjectPath.Text;
             var last = snapshot.Remote.LastSuccessfulCheck;
@@ -195,7 +195,7 @@ public partial class ShellWindow : Window
             NewTerminalButton.IsEnabled = !model.Busy && Permission(snapshot.ProjectId, OperationKind.Terminal);
             NewTerminalButton.ToolTip = grant.Level < AccessLevel.AllowChanges ? "Requires Allow changes: a real shell can modify files. Use Branches or History graph to inspect branches safely." : "An interactive shell can modify files. An active operation or access transition may need to finish first.";
             ToolTipService.SetShowOnDisabled(NewTerminalButton, true);
-            TerminalModeText.Text = grant.PendingLevel is not null ? "Access transition pending: owned activity is closing." : grant.Level == AccessLevel.AllowChanges ? "Sessions retain their originating project when you switch projects." : "Allow changes is required for an interactive terminal.";
+            TerminalModeText.Text = grant.PendingLevel is not null ? "Changing access: GitCompass is closing open sessions first." : grant.Level == AccessLevel.AllowChanges ? "Each terminal stays linked to the project it was opened in." : "To type commands here, first choose Allow changes at the top.";
             AccessHelper.Text = grant.PendingLevel is not null ? "Locking this project: owned activity must finish closing before the stricter mode is active." : grant.Level switch
             {
                 AccessLevel.ReadOnly => "Read-only: look around without changing the project. Choose Allow changes when you are ready to save a version.",
@@ -257,11 +257,11 @@ public partial class ShellWindow : Window
     private async void CheckRemote(object sender, RoutedEventArgs e) => await RequestAsync(OperationKind.Fetch);
     private async Task WorkAsync(Func<Task> work)
     {
-        if (model.Busy) { Banner("An operation is already running. Its output remains available below."); return; }
+        if (model.Busy) { Banner("Please wait: GitCompass is still finishing the last step. You can watch it under Activity details."); return; }
         model.Busy = true; activeCancellation = new(); UpdateContext();
         try { await work(); }
-        catch (OperationCanceledException) { Banner("Operation canceled. Repository state is being re-inspected."); }
-        catch (Exception e) { ShowProblem("Action could not complete", e.Message); }
+        catch (OperationCanceledException) { Banner("Stopped. GitCompass is checking your project again so the screen shows what really happened."); }
+        catch (Exception e) { ShowProblem("That step didn't work", e.Message); }
         finally { model.Busy = false; activeCancellation?.Dispose(); activeCancellation = null; UpdateContext(); }
     }
     private async Task RequestAsync(OperationKind kind, ImmutableArray<string> paths = default, string? message = null, string? branch = null, string? target = null, string? remote = null, string? remoteUrl = null, ImmutableArray<string> ignore = default, bool includeUntracked = false, bool setUpstream = false, string? authorName = null, string? authorEmail = null)
@@ -281,7 +281,7 @@ public partial class ShellWindow : Window
         AddCard(PageContent, Redactor.Redact(preview.Explanation));
         AddCard(PageContent, "Project: " + model.Snapshot!.Project.DisplayName + "\nBranch: " + (model.Snapshot.Branch ?? model.Snapshot.BranchState.ToString()) + "\nAccess: " + AccessText(preview.AccessLevel) + "\nTargets: " + string.Join("\n", preview.Targets.Select(Redactor.Redact)));
         PageContent.Children.Add(Mono(Redactor.Redact(preview.CommandDisplay), 110));
-        Text(PageContent, "This review is tied to the observed files, index, refs, and access grant. A changed repository or revoked permission requires a new review.", true);
+        Text(PageContent, "This preview matches your project exactly as it is now. If files change, or you turn off Allow changes, GitCompass will ask you to review again.", true);
         var actions = Row();
         actions.Children.Add(Action("Run reviewed operation", async () =>
         {
@@ -362,12 +362,12 @@ public partial class ShellWindow : Window
     }
     private void BuildProjects()
     {
-        Heading("Projects", "Choose the folder containing your project files. GitCompass checks whether it already remembers versions.");
+        Heading("Projects", "Pick the folder where your project files live. GitCompass will check if it already keeps saved versions (Git history).");
         PageContent.Children.Add(Action("Select project folder", () => PickFolder(this, new RoutedEventArgs()), true));
         Text(PageContent, "Opening a folder does not change its files or start online sharing.", true);
         foreach (var recent in ProjectSelector.Items.OfType<RecentProject>())
             PageContent.Children.Add(SettingsRow(recent.DisplayName, recent.Folder, Action("Open project", async () => await OpenProjectAsync(recent.Folder))));
-        if (ProjectSelector.Items.Count == 0) Text(PageContent, "Your recently opened projects will appear here.", true);
+        if (ProjectSelector.Items.Count == 0) Text(PageContent, "No projects yet. Click \"Select project folder\" above to start. New to this? Open Learn on the left, or create a practice folder there.", true);
         BuildGuideEntry(PageContent);
     }
     private void RenderPage()
@@ -420,7 +420,7 @@ public partial class ShellWindow : Window
         var firstIsUploadedPush = alreadyUploaded && plan.Steps.FirstOrDefault()?.Action == OperationKind.Push;
         Heading(firstIsUploadedPush ? "Your reviewed version was uploaded" : plan.Steps.FirstOrDefault()?.Title ?? "Understand this project", firstIsUploadedPush ? "Check remote to refresh the cached team copy. A successful upload does not refresh these cached comparisons." : plan.Steps.FirstOrDefault()?.Reason ?? "Repository status was read from Git.");
         BuildGuideEntry(PageContent);
-        if (snapshot.HasLocalEdits) PageContent.Children.Add(Action("Review changed files", () => Navigate("Changes"), true));
+        if (snapshot.HasLocalEdits) PageContent.Children.Add(Action("See your changed files", () => Navigate("Changes"), true));
         var goal = new ComboBox { Width = 250, HorizontalAlignment = HorizontalAlignment.Left, ItemsSource = new[] { "Understand this project", "Upload my work", "Get the latest changes", "Start a task", "Prepare a pull request", "Understand this error" }, SelectedIndex = (int)model.Goal, Margin = new(0, 0, 0, 15) };
         AutomationProperties.SetName(goal, "Your current goal"); goal.SelectionChanged += (_, _) => { model.Goal = (UserGoal)goal.SelectedIndex; BuildOverviewReplacement(); }; PageContent.Children.Add(goal);
         var stats = Columns(3);
@@ -442,18 +442,18 @@ public partial class ShellWindow : Window
                 continue;
             }
             Text(next, number++ + "  " + step.Title, false, 16, FontWeights.SemiBold); Text(next, step.Reason, true);
-            var details = new StackPanel(); Text(details, "Effect: " + step.Effects); Text(details, "Before you start: " + step.Prerequisites); Text(details, "If this fails: " + step.Recovery); details.Children.Add(Action("Open this lesson", () => ShowLesson(step.Lesson)));
+            var details = new StackPanel(); Text(details, "Effect: " + step.Effects); Text(details, "Before you start: " + step.Prerequisites); Text(details, "If this fails: " + step.Recovery); details.Children.Add(Action("Learn more in a short lesson", () => ShowLesson(step.Lesson)));
             next.Children.Add(new Expander { Header = "Explain this step", Content = details });
-            if (step.Action is OperationKind.Stage or OperationKind.Commit or OperationKind.Unstage) next.Children.Add(Action("Review these contents", () => Navigate("Changes")));
+            if (step.Action is OperationKind.Stage or OperationKind.Commit or OperationKind.Unstage) next.Children.Add(Action("Go to changed files", () => Navigate("Changes")));
             else if (step.Action is not null) next.Children.Add(OperationButton(step.Title, step.Action.Value, () => RecommendAction(step)));
-            else next.Children.Add(Action("Review changes and details", () => Navigate(snapshot.HasLocalEdits ? "Changes" : "History graph")));
+            else next.Children.Add(Action("See changes and details", () => Navigate(snapshot.HasLocalEdits ? "Changes" : "History graph")));
         }
         AddCard(body, next, 0);
         var graph = new StackPanel(); Subheading(graph, "Current history");
-        if (model.History?.Commits.Length > 0) graph.Children.Add(HistoryControl(model.History.Commits.Take(7).ToImmutableArray(), false)); else Text(graph, "No commit history is available yet.", true);
-        graph.Children.Add(Action("Open full history graph", () => Navigate("History graph"))); AddCard(body, graph, 1); PageContent.Children.Add(body);
-        AddCard(PageContent, "Check remote (Fetch) refreshes knowledge of team history. Update applies reviewed commits to this branch. Commit saves a version locally. Push uploads committed versions.");
-        var row = Row(); row.Children.Add(Action("Review changes", () => Navigate("Changes"), true)); row.Children.Add(Action("Refresh local status", async () => await RefreshAsync())); row.Children.Add(Action("Remote and author setup", BuildProjectSetup)); PageContent.Children.Add(row);
+        if (model.History?.Commits.Length > 0) graph.Children.Add(HistoryControl(model.History.Commits.Take(7).ToImmutableArray(), false)); else Text(graph, "No saved versions (commits) yet. Save your first version on the Changes page.", true);
+        graph.Children.Add(Action("See all saved versions (history)", () => Navigate("History graph"))); AddCard(body, graph, 1); PageContent.Children.Add(body);
+        AddCard(PageContent, "Quick guide: Check for updates (fetch) looks at the online copy without changing your files. Get updates (pull or merge) brings new saved versions into your work. Save a version (commit) keeps a snapshot on this computer. Upload (push) sends your saved versions online.");
+        var row = Row(); row.Children.Add(Action("See your changes", () => Navigate("Changes"), true)); row.Children.Add(Action("Check again for changes", async () => await RefreshAsync())); row.Children.Add(Action("Your name and online copy (setup)", BuildProjectSetup)); PageContent.Children.Add(row);
         if (snapshot.ActiveOperation != GitOperation.None) BuildRecovery(PageContent);
     }
     private bool UploadedCurrentVersion(RepositorySnapshot snapshot) => snapshot.Push is { } push && uploadedVersions.TryGetValue(snapshot.ProjectId, out var uploaded) && uploaded.CommitId == snapshot.HeadId && uploaded.Url == push.Url && "refs/heads/" + uploaded.DestinationBranch == push.DestinationRef;
@@ -478,7 +478,7 @@ public partial class ShellWindow : Window
     }
     private void BuildNonGitPage()
     {
-        Heading("This folder is not using Git yet", "Your existing files are preserved. Opening this folder has not created a Git repository.");
+        Heading("This folder doesn't keep saved versions yet", "Your files are safe and unchanged. GitCompass has not turned on version saving (Git) here.");
         var explanation = model.Page switch
         {
             "Changes" => "Git cannot label files as staged, unstaged or changed against a recorded version until this folder has Git history. Your files are still in the folder.",
@@ -489,18 +489,18 @@ public partial class ShellWindow : Window
         AddCard(PageContent, explanation);
         Text(PageContent, "You can keep this as an ordinary folder. When ready, review starting local history in this folder, or clone your team's existing repository into a separate empty folder. GitHub sign-in is optional for local Git work.", true);
         var actions = Row();
-        actions.Children.Add(Action("Review ways to start using Git", () => Navigate("Overview"), true));
-        actions.Children.Add(Action("Learn the local-to-uploaded workflow", () => ShowLesson("journey")));
+        actions.Children.Add(Action("Start saving versions here", () => Navigate("Overview"), true));
+        actions.Children.Add(Action("Learn how saving and uploading work", () => ShowLesson("journey")));
         actions.Children.Add(Action("Choose another folder", () => PickFolder(this, new RoutedEventArgs())));
         PageContent.Children.Add(actions);
     }
     private void BuildProjectSetup()
     {
-        PageContent.Children.Clear(); reviewing = true; Heading("Project setup", "Review local author identity and the intended remote. Values must come from you or your team.");
-        var name = Input(PageContent, "Commit author name", ""); var email = Input(PageContent, "Commit author email", "");
+        PageContent.Children.Clear(); reviewing = true; Heading("Project setup", "Tell Git your name and, if you have one, where the online copy (remote) lives. Only use details from you or your team.");
+        var name = Input(PageContent, "Your name (shown on each saved version)", ""); var email = Input(PageContent, "Your email (shown on each saved version)", "");
         PageContent.Children.Add(OperationButton("Review author identity change", OperationKind.ConfigureIdentity, async () => await RequestAsync(OperationKind.ConfigureIdentity, authorName: name.Text, authorEmail: email.Text)));
-        Text(PageContent, "Commit author identity is separate from GitHub sign-in.", true);
-        var remote = Input(PageContent, "Remote name", "origin"); var url = Input(PageContent, "Authorized repository URL", ""); var branch = Input(PageContent, "Tracking branch (leave empty to configure only the remote)", "");
+        Text(PageContent, "This name and email label your saved versions. It is not the same as signing in to GitHub.", true);
+        var remote = Input(PageContent, "Short name for the online copy (remote) — usually origin", "origin"); var url = Input(PageContent, "Web address of the online copy (repository URL)", ""); var branch = Input(PageContent, "Line of work to follow (branch) — leave empty if unsure", "");
         PageContent.Children.Add(OperationButton("Review remote configuration", OperationKind.ConfigureRemote, async () => await RequestAsync(OperationKind.ConfigureRemote, remote: remote.Text, remoteUrl: url.Text, branch: branch.Text.Length > 0 ? branch.Text : null, setUpstream: branch.Text.Length > 0)));
         Subheading(PageContent, "First publication"); Text(PageContent, "Review ignore rules, files, and a first local commit before publication. An existing remote with unrelated history requires migration review. Keep the ZIP backup until a clean verification clone has been checked.", true);
         var publishBranch = Input(PageContent, "Publication destination branch", model.Snapshot?.Branch ?? "");
@@ -541,7 +541,7 @@ public partial class ShellWindow : Window
     private void BuildChanges()
     {
         var snapshot = model.Snapshot!;
-        Heading("Changed files", "Choose which saved file contents belong in the next version. A version is saved on this computer before you upload it.");
+        Heading("Changed files", "Tick the files you want in your next saved version (commit). Saving keeps it on this computer; uploading is a separate step.");
         BuildGuideEntry(PageContent);
         BuildUndoCard(snapshot);
         if (!snapshot.HasAuthorIdentity)
@@ -549,18 +549,18 @@ public partial class ShellWindow : Window
         if (workspace!.Access.Get(snapshot.ProjectId).Level != AccessLevel.AllowChanges)
             PageContent.Children.Add(SettingsRow("Enable saving for this session", "Choose Allow changes in Project access above. Each guided operation still asks you to review its effects.", Action("Review project access", () => { AccessSelector.Focus(); AccessSelector.IsDropDownOpen = true; })));
         var commitPanel = new StackPanel();
-        var row = Row(); row.Children.Add(Action("Refresh local status", async () => await RefreshAsync())); row.Children.Add(Action("Review ignore suggestions", BuildIgnore)); row.Children.Add(Action("Preserve work with a stash", BuildStash)); row.Children.Add(Action("Write commit message", () => commitPanel.BringIntoView())); PageContent.Children.Add(row);
+        var row = Row(); row.Children.Add(Action("Check again for changes", async () => await RefreshAsync())); row.Children.Add(Action("Choose files to never save (ignore)", BuildIgnore)); row.Children.Add(Action(GitGlossary.Label("stash") + " for later", BuildStash)); row.Children.Add(Action("Describe this version", () => commitPanel.BringIntoView())); PageContent.Children.Add(row);
         var columns = Columns(2); var unstaged = FileGroup(snapshot.Files.Where(f => f.IsUnstaged).ToArray(), "Unstaged and new files", DiffKind.Worktree, OperationKind.Stage); var staged = FileGroup(snapshot.Files.Where(f => f.IsStaged).ToArray(), "Staged contents", DiffKind.Staged, OperationKind.Unstage); AddCard(columns, unstaged, 0); AddCard(columns, staged, 1); PageContent.Children.Add(columns);
         var allStaged = snapshot.Files.Where(f => f.IsStaged).ToArray();
-        Subheading(commitPanel, "Save a version locally (Commit)"); Text(commitPanel, $"The next commit includes the entire reviewed index: {allStaged.Length} staged paths. A normal push does not upload unstaged edits, ignored files, or editor buffers.", true);
-        var message = Input(commitPanel, "Commit message — describe what changed and why", "", true);
+        Subheading(commitPanel, "Save a version on this computer (commit)"); Text(commitPanel, allStaged.Length == 0 ? "Nothing is chosen yet. Tick files on the left and choose \"Review staging selected files\" first." : $"This save will include the {allStaged.Length} chosen file(s). Files you did not choose, and unsaved edits in your editor, are not included.", true);
+        var message = Input(commitPanel, "Message: what did you change, and why? (commit message)", "", true);
         commitPanel.Children.Add(OperationButton("Review local commit", OperationKind.Commit, async () => await RequestAsync(OperationKind.Commit, message: message.Text))); PageContent.Children.Add(commitPanel);
         if (snapshot.ActiveOperation != GitOperation.None) BuildRecovery(PageContent);
     }
     private FrameworkElement FileGroup(FileState[] files, string title, DiffKind diffKind, OperationKind operation)
     {
-        var panel = new StackPanel(); Subheading(panel, operation == OperationKind.Stage ? "Choose files for this version" : "Already chosen for the version");
-        Text(panel, operation == OperationKind.Stage ? "Selected files are staged before saving the version." : "These staged contents are already included. Review them too.", true, 12);
+        var panel = new StackPanel(); Subheading(panel, operation == OperationKind.Stage ? "Choose files for this version" : "Already chosen for the version (staged)");
+        Text(panel, operation == OperationKind.Stage ? "Tick a file to see what changed, then add it to your next version (stage)." : "These will go into your next saved version. You can still take any of them out.", true, 12);
         var list = new ListBox { Height = files.Length == 0 ? 60 : 180, SelectionMode = SelectionMode.Extended };
         ScrollViewer.SetHorizontalScrollBarVisibility(list, ScrollBarVisibility.Disabled);
         foreach (var file in files)
@@ -572,9 +572,9 @@ public partial class ShellWindow : Window
             item.Content = choice; list.Items.Add(item);
         }
         AutomationProperties.SetName(list, title); panel.Children.Add(list);
-        if (files.Length == 0) Text(panel, "No contents in this group.", true);
-        var diff = Mono("Choose a file to review what changed. New files show their saved contents where available.", 180);
-        var details = new Expander { Header = "Review file contents", Content = diff };
+        if (files.Length == 0) Text(panel, operation == OperationKind.Stage ? "Nothing changed since your last saved version. Edit a file in your project, then choose \"Check again for changes\"." : "Nothing chosen yet. Tick files on the left to add them.", true);
+        var diff = Mono("Click a file to see what changed (diff). Lines starting with + were added; lines starting with - were removed.", 180);
+        var details = new Expander { Header = "See what changed in this file", Content = diff };
         list.SelectionChanged += async (_, _) =>
         {
             if (list.SelectedItem is not ListBoxItem { Tag: FileState file }) return;
@@ -584,7 +584,7 @@ public partial class ShellWindow : Window
         panel.Children.Add(OperationButton(operation == OperationKind.Stage ? "Review staging selected files" : "Review unstaging selected files", operation, async () =>
         {
             var paths = list.SelectedItems.OfType<ListBoxItem>().Select(i => ((FileState)i.Tag).Path).ToImmutableArray();
-            if (paths.Length == 0) { Banner("Select one or more exact files first."); return; }
+            if (paths.Length == 0) { Banner("Tick at least one file first, then try again."); return; }
             await RequestAsync(operation, paths: paths);
         }));
         panel.Children.Add(details);
@@ -596,7 +596,7 @@ public partial class ShellWindow : Window
         await WorkAsync(async () =>
         {
             var suggestions = await workspace.IgnoreSuggestionsAsync(model.Snapshot.ProjectId);
-            reviewing = true; PageContent.Children.Clear(); Heading("Review ignore rules", "Ignore rules affect untracked files. Already tracked files stay tracked, and their past copies remain in history.");
+            reviewing = true; PageContent.Children.Clear(); Heading("Files to never save (ignore rules)", "Ignored files are skipped by Git. This only affects files Git isn't saving yet; files already saved stay in your history.");
             var choices = new List<(CheckBox Box, IgnoreSuggestion Suggestion)>();
             foreach (var suggestion in suggestions)
             {
@@ -611,7 +611,7 @@ public partial class ShellWindow : Window
     }
     private void BuildStash()
     {
-        reviewing = true; PageContent.Children.Clear(); Heading("Preserve unfinished work", "A stash keeps selected unfinished edits locally. Restoration can conflict and does not upload the work.");
+        reviewing = true; PageContent.Children.Clear(); Heading("Set unfinished work aside (stash)", "Puts your unsaved edits away on this computer so your files go back to the last saved version. You can bring them back later. Nothing is uploaded.");
         var include = new CheckBox { Content = "Include untracked files (ignored files are still excluded)", IsChecked = false }; PageContent.Children.Add(include);
         PageContent.Children.Add(OperationButton("Review creating a stash", OperationKind.Stash, async () => await RequestAsync(OperationKind.Stash, message: "GitCompass preserved work", includeUntracked: include.IsChecked == true)));
         if (model.Snapshot is not null && stashes.TryGetValue(model.Snapshot.ProjectId, out var id))
@@ -623,17 +623,17 @@ public partial class ShellWindow : Window
     }
     private void BuildRecovery(Panel target)
     {
-        Subheading(target, "Interrupted operation: " + model.Snapshot!.ActiveOperation);
-        Text(target, "Ordinary synchronization pauses while this operation is active. Open affected files in your editor, compare local and incoming versions, inspect the result, and stage each resolved path. Binary or rename/delete conflicts may need developer help.", true);
+        Subheading(target, "Unfinished step: " + model.Snapshot!.ActiveOperation + " — needs your choice");
+        Text(target, "Some files were changed in two places at once (a conflict). Open each file below in your editor, keep the lines you want, and delete the <<<<<<< ======= >>>>>>> marker lines. Then choose \"Review resolved file\" for each one. Picture or renamed/deleted files may need help from a developer.", true);
         foreach (var file in model.Snapshot.Files.Where(f => f.Kind == FileKind.Conflicted))
         {
-            var row = Row(); Text(row, file.Path); row.Children.Add(Action("Reveal file in Explorer", () => RevealProjectFile(file.Path))); row.Children.Add(OperationButton("Review resolved file", OperationKind.Stage, async () => await RequestAsync(OperationKind.Stage, paths: ImmutableArray.Create(file.Path)))); target.Children.Add(row);
+            var row = Row(); Text(row, file.Path); row.Children.Add(Action("Show file in folder", () => RevealProjectFile(file.Path))); row.Children.Add(OperationButton("Review resolved file", OperationKind.Stage, async () => await RequestAsync(OperationKind.Stage, paths: ImmutableArray.Create(file.Path)))); target.Children.Add(row);
         }
         if (model.Snapshot.ActiveOperation == GitOperation.Merge)
         {
             target.Children.Add(OperationButton("Review continuing the merge", OperationKind.ContinueMerge, async () => await RequestAsync(OperationKind.ContinueMerge)));
             target.Children.Add(OperationButton("Review aborting the merge", OperationKind.AbortMerge, async () => await RequestAsync(OperationKind.AbortMerge)));
-            Text(target, "Abort is operation-specific; it is not a universal backup. Reinspect any restored work and retained stash.", true);
+            Text(target, "Aborting puts things back to how they were before this step started. It is not a full backup, so check your files afterwards.", true);
         }
         else Text(target, "This operation needs an external editor or developer-guided terminal recovery. GitCompass keeps its state and output visible.", true);
     }
@@ -644,7 +644,7 @@ public partial class ShellWindow : Window
     private sealed record HistoryReference(string Label, string Id);
     private async void BuildHistory()
     {
-        Heading("History graph", "Recorded commits and their actual parents. Workspace edits appear in Changes, rather than as invented commits.");
+        Heading("History", "Every version you or your team saved (commits), newest first. Unsaved edits are on the Changes page, not here.");
         var snapshot = model.Snapshot!; var generation = renderGeneration;
         Text(PageContent, "Your branch: " + (snapshot.Branch ?? snapshot.BranchState.ToString()) + " • last known team copy: " + (snapshot.Upstream ?? "not configured") + " • only in your branch: " + (snapshot.Ahead?.ToString() ?? "unknown") + " • only in the team copy: " + (snapshot.Behind?.ToString() ?? "unknown"), true);
         if (historyLeftId is not null && historyLeftId == historyRightId)
@@ -667,11 +667,11 @@ public partial class ShellWindow : Window
             ShowFilteredHistory(); filter.TextChanged += (_, _) => ShowFilteredHistory();
             Text(PageContent, $"History page {historySkip / 200 + 1}; at most 200 rows are held in the view.", true);
             var pages = Row();
-            if (historySkip > 0) pages.Children.Add(Action("Previous history page", async () => await HistoryPageAsync(Math.Max(0, historySkip - 200))));
-            if (model.History.HasMore) pages.Children.Add(Action("Next history page", async () => await HistoryPageAsync(historySkip + 200)));
+            if (historySkip > 0) pages.Children.Add(Action("Newer versions", async () => await HistoryPageAsync(Math.Max(0, historySkip - 200))));
+            if (model.History.HasMore) pages.Children.Add(Action("Older versions", async () => await HistoryPageAsync(historySkip + 200)));
             PageContent.Children.Add(pages);
         }
-        else AddCard(PageContent, "No recorded history is available. A new project needs a reviewed first commit.");
+        else AddCard(PageContent, "No saved versions yet. Go to Changes, tick your files, and save your first version (commit).");
         var row = Row(); row.Children.Add(Action("Learn about branches", () => ShowLesson("git-branch"))); row.Children.Add(OperationButton("Review integration options", OperationKind.Merge, BuildMerge)); PageContent.Children.Add(row);
         try
         {
@@ -755,8 +755,8 @@ public partial class ShellWindow : Window
     private void BuildMerge()
     {
         reviewing = true; PageContent.Children.Clear(); Heading("Review integration choices", "Local and team commits need a deliberate integration decision. The guided shared-branch path creates a merge; it never substitutes a force push.");
-        var snapshot = model.Snapshot!; AddCard(PageContent, "Current branch: " + snapshot.Branch + "\nFetched upstream: " + (snapshot.Upstream ?? "unknown") + "\nReviewed target: " + (snapshot.UpstreamId ?? "unavailable") + "\nPreserve all local edits before integration. Abort may not reconstruct pre-existing edits reliably.");
-        if (snapshot.UpstreamId is not null) PageContent.Children.Add(OperationButton("Preview merge of fetched upstream", OperationKind.Merge, async () => await RequestAsync(OperationKind.Merge, target: snapshot.UpstreamId)));
+        var snapshot = model.Snapshot!; AddCard(PageContent, "Current branch: " + snapshot.Branch + "\nTeam copy last checked (fetched upstream): " + (snapshot.Upstream ?? "unknown") + "\nReviewed target: " + (snapshot.UpstreamId ?? "unavailable") + "\nPreserve all local edits before integration. Abort may not reconstruct pre-existing edits reliably.");
+        if (snapshot.UpstreamId is not null) PageContent.Children.Add(OperationButton("Preview combining the team's new versions (merge)", OperationKind.Merge, async () => await RequestAsync(OperationKind.Merge, target: snapshot.UpstreamId)));
         PageContent.Children.Add(Action("Learn about merge and conflict recovery", () => ShowLesson("git-merge"))); PageContent.Children.Add(Action("Back to history", () => Navigate("History graph")));
     }
     private async void BuildBranches()
@@ -850,10 +850,10 @@ public partial class ShellWindow : Window
         {
             await RefreshAsync(false);
             var snapshot = model.Snapshot!; workspace!.Access.Authorize(snapshot.ProjectId, OperationKind.GitHubWrite);
-            if (snapshot.HeadId is null || snapshot.BranchState != BranchState.Attached || head.Text.Trim() != snapshot.Branch) { Banner("Choose the current attached local branch as source. Publish its reviewed HEAD before proposing it for review."); return; }
+            if (snapshot.HeadId is null || snapshot.BranchState != BranchState.Attached || head.Text.Trim() != snapshot.Branch) { Banner("Pick the line of work (branch) you are on now as the source, and upload (push) it before asking for a review."); return; }
             var publishedOwner = sourceOwner.Text.Trim(); var publishedRepository = sourceRepository.Text.Trim(); var publishedBranch = head.Text.Trim(); var repositoryOwner = owner.Text.Trim(); var repositoryName = repository.Text.Trim();
             using (var verificationLease = workspace.Access.Acquire(snapshot.ProjectId, OperationKind.GitHubRead))
-                if (!await HostedOperationAsync(snapshot.ProjectId, OperationKind.GitHubRead, "Verify the published GitHub source version", () => CreateGitHubClient(snapshot.ProjectId).VerifyPublishedCommitAsync(publishedOwner, publishedRepository, publishedBranch, snapshot.HeadId, verificationLease.Revoked))) { Banner("The chosen source repository branch does not contain the current local HEAD. Upload it to that explicit destination and verify it before preparing this PR."); return; }
+                if (!await HostedOperationAsync(snapshot.ProjectId, OperationKind.GitHubRead, "Verify the published GitHub source version", () => CreateGitHubClient(snapshot.ProjectId).VerifyPublishedCommitAsync(publishedOwner, publishedRepository, publishedBranch, snapshot.HeadId, verificationLease.Revoked))) { Banner("Your newest saved version isn't online on that branch yet. Upload (push) it there first, then come back to make the review request (pull request)."); return; }
             if (model.Snapshot?.ProjectId != snapshot.ProjectId || model.Page != "Pull requests") return;
             var request = new PullRequestDraft(title.Text, body.Text, publishedOwner + ":" + publishedBranch, target.Text, draft.IsChecked == true, publishedRepository); var fingerprint = snapshot.Fingerprint; var generation = workspace.Access.Get(snapshot.ProjectId).Generation;
             reviewing = true; PageContent.Children.Clear(); Heading("Review pull request", "Submitting creates a hosted collaboration request; it does not merge branches."); AddCard(PageContent, $"Source repository: {publishedOwner}/{publishedRepository}\nPublished source branch: {publishedBranch}\nVerified source commit: {snapshot.HeadId}\nTarget repository: {repositoryOwner}/{repositoryName}\nTarget branch: {request.Base}\nTitle: {request.Title}\nDraft: {request.Draft}\nAccess: Allow changes\n\n{request.Body}");
@@ -961,7 +961,7 @@ public partial class ShellWindow : Window
             }, true));
             AddCard(PageContent, prerequisite);
         }
-        if (damagedSettings is not null) PageContent.Children.Add(Action("Preserve damaged settings and use reviewed defaults", () =>
+        if (damagedSettings is not null) PageContent.Children.Add(Action("Back up the broken settings file and start fresh", () =>
         {
             var backup = damagedSettings + ".preserved-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"); File.Copy(damagedSettings, backup, overwrite: false); damagedSettings = null; setupError = null; Banner("Damaged settings copied to a separate recovery file. Review preferences before saving defaults.");
         }));
@@ -1003,7 +1003,7 @@ public partial class ShellWindow : Window
         PageContent.Children.Add(SettingsRow("Try a different design", "Explore a Liquid Glass-inspired page with sample project data. Changes inside the preview only affect its appearance.", Action("Open Liquid Glass preview", () => Navigate("Liquid Glass preview"))));
         Subheading(PageContent, "Check for team updates");
         var interval = new TextBox { Text = settings.FetchIntervalMinutes.ToString(), Width = 100, MinHeight = 36 };
-        AutomationProperties.SetName(interval, "Remote check interval in minutes (1–1440)");
+        AutomationProperties.SetName(interval, "How often to check for team updates, in minutes (1–1440)");
         PageContent.Children.Add(SettingsRow("Check interval", "Minutes between automatic checks, from 1 to 1440. Checks require an enabled team connection.", interval));
         var canMonitor = model.Snapshot?.Project.Kind is RepositoryKind.WorkingTree or RepositoryKind.LinkedWorktree && model.Snapshot.HasRemotes && model.Snapshot.Upstream is not null;
         var monitoring = new CheckBox { Content = "Enabled", IsChecked = canMonitor && model.Snapshot?.Project.MonitoringEnabled == true, IsEnabled = canMonitor, ToolTip = canMonitor ? "Requires Monitor only or Allow changes." : "Select a project with a configured team connection first." };
@@ -1020,10 +1020,10 @@ public partial class ShellWindow : Window
         var quietStart = Input(quietStartPanel, "Start hour (0–23, local time)", (settings.QuietHoursStart ?? 22).ToString()); var quietEnd = Input(quietEndPanel, "End hour (0–23, local time)", (settings.QuietHoursEnd ?? 8).ToString()); PageContent.Children.Add(quietRow);
         void SetQuietInputs() => quietRow.IsEnabled = quietHours.IsChecked == true; quietHours.Checked += (_, _) => SetQuietInputs(); quietHours.Unchecked += (_, _) => SetQuietInputs(); SetQuietInputs();
         var advanced = new StackPanel();
-        var git = Input(advanced, "Git executable path (leave blank to detect)", settings.GitExecutablePath ?? "");
+        var git = Input(advanced, "Where Git is installed (leave blank and GitCompass will find it)", settings.GitExecutablePath ?? "");
         advanced.Children.Add(Action("Select Git executable", () => { var picker = new OpenFileDialog { Title = "Select Git for Windows", Filter = "Git executable|git.exe" }; if (picker.ShowDialog(this) == true) git.Text = picker.FileName; }));
         Text(advanced, "Detected: " + (DependencyProbe.FindGitExecutable() ?? "Git not found") + "\nHost: " + Environment.OSVersion.VersionString + " • " + System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture, true);
-        Text(advanced, "GitHub sign-in uses an app registration. Enter its public client ID here; do not enter a password or client secret. This setting is needed for hosted pull requests, while local Git workflows work without it.", true);
+        Text(advanced, "Only needed for review requests (pull requests) on GitHub. Most people can leave this empty. If your team gave you a GitHub App client ID, paste it here. Never type a password here.", true);
         var client = Input(advanced, "Registered GitHub App public client ID", settings.GitHubClientId ?? "");
         if (string.IsNullOrWhiteSpace(settings.GitHubClientId) && ShippedGitHubClientId is not null) Text(advanced, "This build includes a GitHub App client ID, so sign-in works without entering one. Enter a different ID here only to use your own app registration.", true);
         PageContent.Children.Add(new Expander { Header = "Advanced connection setup", Content = advanced, IsExpanded = workspace is null });
@@ -1167,9 +1167,9 @@ public partial class ShellWindow : Window
         var origin = projectId ?? model.Snapshot?.ProjectId; var projectName = origin.HasValue ? workspace?.Projects.FirstOrDefault(project => project.Id == origin)?.DisplayName : null;
         var attributedTitle = projectName is null ? title : projectName + " • " + title;
         Banner(attributedTitle + ": " + detail); var panel = new StackPanel { Margin = new(0, 0, 0, 16) }; Text(panel, attributedTitle, false, 15, FontWeights.SemiBold); Text(panel, detail, true);
-        if (GitErrorExplainer.Explain(detail) is { } friendly) { Text(panel, "In plain words · " + friendly.Title, false, 14, FontWeights.SemiBold); Text(panel, friendly.WhatHappened, true); Text(panel, "What to do: " + friendly.WhatToDo, true); }
+        var friendly = GitErrorExplainer.Explain(detail) ?? GitErrorExplainer.Fallback; Text(panel, "In plain words · " + friendly.Title, false, 14, FontWeights.SemiBold); Text(panel, "What happened: " + friendly.WhatHappened, true); Text(panel, "What to do: " + friendly.WhatToDo, true);
         if (detail.Contains("author name and email", StringComparison.OrdinalIgnoreCase)) panel.Children.Add(Action("Set author details", () => Navigate("Author setup"), true));
-        panel.Children.Add(Action("Review operation output", async () => await ReviewProblemContextAsync(origin, false))); panel.Children.Add(Action("Prepare reviewed support information", async () => await ReviewProblemContextAsync(origin, true))); ProblemsPanel.Children.Insert(0, panel); while (ProblemsPanel.Children.Count > 40) ProblemsPanel.Children.RemoveAt(40);
+        panel.Children.Add(Action("See full details", async () => await ReviewProblemContextAsync(origin, false))); panel.Children.Add(Action("Get help: make a summary to share", async () => await ReviewProblemContextAsync(origin, true))); ProblemsPanel.Children.Insert(0, panel); while (ProblemsPanel.Children.Count > 40) ProblemsPanel.Children.RemoveAt(40);
         SetActivityDock(true); DockTabs.SelectedIndex = 1;
     }
     private async Task ReviewProblemContextAsync(Guid? origin, bool support)

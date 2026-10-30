@@ -82,7 +82,7 @@ internal static class ResponsiveLayoutChecks
             "restoring a wide window returns labeled navigation without leaving an overlay open");
         Capture(root, "settings-dark-restored-wide");
         var interval = LogicalDescendants<TextBox>((FrameworkElement)window.FindName("PageContent"))
-            .Single(item => AutomationProperties.GetName(item).StartsWith("Remote check interval", StringComparison.Ordinal));
+            .Single(item => AutomationProperties.GetName(item).StartsWith("How often to check for team updates", StringComparison.Ordinal));
         interval.Text = "37";
         await Resize(640, 600); await Resize(1200, 860);
         Check(interval.Text == "37" && LogicalDescendants<TextBox>((FrameworkElement)window.FindName("PageContent")).Contains(interval),
@@ -200,7 +200,7 @@ internal static class ResponsiveLayoutChecks
             Check(sidebar.IsVisible, "changing navigation selection keeps the compact drawer open: " + tag);
         }
         var draft = LogicalDescendants<TextBox>((FrameworkElement)window.FindName("PageContent"))
-            .Single(item => AutomationProperties.GetName(item).StartsWith("Remote check interval", StringComparison.Ordinal));
+            .Single(item => AutomationProperties.GetName(item).StartsWith("How often to check for team updates", StringComparison.Ordinal));
         draft.Text = "58";
         MouseRelease(navigation); await Settle();
         Check(sidebar.IsVisible && draft.Text == "58" &&

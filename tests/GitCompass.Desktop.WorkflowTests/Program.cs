@@ -77,7 +77,7 @@ internal static class Program
         Click("Run reviewed operation");
         await Until(() => workspace.GetSnapshot(project.Id)?.Files.Any(file => file.IsStaged) == true && HasButton("Review local commit"));
         Check((await Git(repository, "diff", "--cached", "--", "readme.txt")).Contains("Reviewed UI workflow change"), "native stage review executes only selected real file contents");
-        var message = Descendants<TextBox>(_window).First(box => AutomationProperties.GetName(box).StartsWith("Commit message")); message.Text = "Save reviewed native workflow version";
+        var message = Descendants<TextBox>(_window).First(box => AutomationProperties.GetName(box).StartsWith("Message:")); message.Text = "Save reviewed native workflow version";
         Click("Review local commit"); await Until(() => HasButton("Run reviewed operation")); Click("Run reviewed operation");
         await Until(() => workspace.GetSnapshot(project.Id)?.HeadId != initialHead && HasButton("Review local commit"));
         var newHead = (await Git(repository, "rev-parse", "HEAD")).Trim();

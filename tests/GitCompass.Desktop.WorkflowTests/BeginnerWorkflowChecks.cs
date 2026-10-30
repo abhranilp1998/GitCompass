@@ -120,7 +120,7 @@ internal static class BeginnerWorkflowChecks
         Click(window, "Run reviewed operation");
         await Until(window, () => Snapshot(window)?.Files.Count(file => file.IsStaged) == 1 && HasButton(window, "Review local commit") && IsIdle(window));
         check(await Git(repository, "diff", "--cached", "--name-only") == keep + "\n", "reviewed beginner staging includes only the selected file");
-        FieldByPrefix(window, "Commit message").Text = "My first guided local version";
+        FieldByPrefix(window, "Message:").Text = "My first guided local version";
         Click(window, "Review local commit"); await Until(window, () => HasButton(window, "Run reviewed operation") && IsIdle(window));
         Capture(window, evidenceRoot, "04-local-commit-review-light");
         Click(window, "Run reviewed operation");
