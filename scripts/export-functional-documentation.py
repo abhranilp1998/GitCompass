@@ -445,7 +445,7 @@ def check_source(text, blocks):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output",type=Path,default=ROOT/"output"/"pdf")
+    parser.add_argument("--output",type=Path,default=ROOT/"archive"/"output"/"pdf")
     options = parser.parse_args()
     options.output.mkdir(parents=True,exist_ok=True)
     text = SOURCE.read_text(encoding="utf-8")

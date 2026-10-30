@@ -12,8 +12,8 @@ For a stronger glass experiment, open **Settings → Try a different design → 
 
 The [complete functional documentation](functional-documentation.md) explains every screen and guided workflow, permissions, state changes, recovery, settings, storage, limitations and verified acceptance. It is the detailed manual; [the user guide](user-guide.md) is the shorter starting path.
 
-Reading copies are available as a [printable PDF](../output/pdf/GitCompass-Functional-Documentation-0.1.1.pdf) and [self-contained offline HTML](../output/pdf/GitCompass-Functional-Documentation-0.1.1.html). Regenerate them with `python scripts/export-functional-documentation.py`; the manual's maintenance section lists the export dependencies and checks. The [0.1.1 inspection update](inspection-update-0.1.1.md) explains branch viewing in Read-only/Monitor only, plain-folder guidance and the separate updated trial.
-GitCompass implements the supplied build pack as one native application. The original specification and four UI concepts are preserved under [`reference/`](../reference/); [`docs/specification.md`](specification.md) records their role and the GitCompass naming decision. Current evidence and remaining release gates are recorded in [`docs/verification.md`](verification.md).
+Reading copies are available as a [printable PDF](../archive/output/pdf/GitCompass-Functional-Documentation-0.1.1.pdf) and [self-contained offline HTML](../archive/output/pdf/GitCompass-Functional-Documentation-0.1.1.html). Regenerate them with `python scripts/export-functional-documentation.py`; the manual's maintenance section lists the export dependencies and checks. The [0.1.1 inspection update](../archive/docs/inspection-update-0.1.1.md) explains branch viewing in Read-only/Monitor only, plain-folder guidance and the separate updated trial.
+GitCompass implements the supplied build pack as one native application. The original specification and four UI concepts are preserved under [`archive/reference/`](../archive/reference/); [`docs/specification.md`](specification.md) records their role and the GitCompass naming decision. Current evidence and remaining release gates are recorded in [`docs/verification.md`](verification.md).
 
 See [development-environment.md](development-environment.md) for a recorded example environment.
 
@@ -55,4 +55,4 @@ GitHub API features need a registered GitHub App public client ID with device fl
 
 [`docs/requirements.md`](requirements.md) maps FR01–FR20 to implementation, proof and gaps. [`docs/acceptance.md`](acceptance.md) maps all AT01–AT37 and AT08a scenarios. [`docs/learning-verification.md`](learning-verification.md) records the declared offline command catalog and installed inventory; [`docs/ui-ux-review.md`](ui-ux-review.md) records the concept and actual-window review. Automated fixtures use disposable local repositories and controlled HTTP responses, without live GitHub submissions.
 
-[`docs/task-handoff.md`](task-handoff.md) reconciles the original and resumed subagent assignments with their deliverables and executed evidence, including the interrupted-session recovery.
+[`archive/docs/task-handoff.md`](../archive/docs/task-handoff.md) reconciles the original and resumed subagent assignments with their deliverables and executed evidence, including the interrupted-session recovery.

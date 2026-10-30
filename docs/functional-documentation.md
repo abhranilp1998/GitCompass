@@ -1133,7 +1133,7 @@ The portable runtime remains bundled. Updating a system .NET installation does n
 
 ### 34.3 Documentation and package identities
 
-The original 0.1.0 application/source archives and manual PDF remain separate historical artifacts. The 0.1.1 inspection update is a new portable directory and ZIP; it does not overwrite those archives. Its changed behavior and executed regression evidence are described in [the inspection update record](inspection-update-0.1.1.md). The original package identity remains in [package-report.md](package-report.md).
+The original 0.1.0 application/source archives and manual PDF remain separate historical artifacts. The 0.1.1 inspection update is a new portable directory and ZIP; it does not overwrite those archives. Its changed behavior and executed regression evidence are described in [the inspection update record](../archive/docs/inspection-update-0.1.1.md). The original package identity remains in [package-report.md](package-report.md).
 
 Future publications include updated documentation when explicitly rebuilt. Keep the ZIP's checksum report outside the ZIP to avoid a circular self-hash. Keep source and binary archive identities separate.
 
@@ -1141,7 +1141,7 @@ Future publications include updated documentation when explicitly rebuilt. Keep 
 
 ### 35.1 Recorded automated evidence
 
-The following table records the original 0.1.0 baseline verified on 12 October. The 0.1.1 rerun and additional branch-viewing, plain-folder and partial-clone checks are recorded separately in [the inspection update record](inspection-update-0.1.1.md); baseline evidence alone is not proof of a later package.
+The following table records the original 0.1.0 baseline verified on 12 October. The 0.1.1 rerun and additional branch-viewing, plain-folder and partial-clone checks are recorded separately in [the inspection update record](../archive/docs/inspection-update-0.1.1.md); baseline evidence alone is not proof of a later package.
 
 | Check family | Recorded result |
 | --- | --- |
@@ -1179,7 +1179,7 @@ The large-fixture observation used five thousand tracked files and ten thousand 
 
 All twenty original functional requirements and thirty-eight acceptance scenarios are accounted for. Accounting is not the same as passing each scenario. M5 complete pilot and M7 release readiness remain open.
 
-See [verification.md](verification.md), [acceptance.md](acceptance.md), [pilot-checklist.md](pilot-checklist.md) and [task-handoff.md](task-handoff.md) for detailed evidence and the recovered departmental assignments.
+See [verification.md](verification.md), [acceptance.md](acceptance.md), [pilot-checklist.md](pilot-checklist.md) and [task-handoff.md](../archive/docs/task-handoff.md) for detailed evidence and the recovered departmental assignments.
 
 ## 36. Functional requirement map
 
@@ -1263,7 +1263,7 @@ The authoritative implementation/evidence/gap classification remains [requiremen
 | Logs, support and protected tokens | [StructuredLogStore.cs](../src/GitCompass.Infrastructure.Local/StructuredLogStore.cs), [DiagnosticExporter.cs](../src/GitCompass.Infrastructure.Local/DiagnosticExporter.cs), [WindowsTokenStore.cs](../src/GitCompass.Infrastructure.Local/WindowsTokenStore.cs). |
 | Terminal and local bridge | [TerminalView.cs](../src/GitCompass.Terminal.Windows/TerminalView.cs), [ConPtyTerminalHost.cs](../src/GitCompass.Terminal.Windows/ConPtyTerminalHost.cs). |
 | Offline lessons | [LearningCatalog.cs](../src/GitCompass.Desktop/LearningCatalog.cs), [manifest.json](../assets/learning/manifest.json). |
-| Evidence and original specification | [verification.md](verification.md), [acceptance.md](acceptance.md), [specification.md](specification.md), [original build specification](../reference/Git_Project_Assistant_Build_Spec.md). |
+| Evidence and original specification | [verification.md](verification.md), [acceptance.md](acceptance.md), [specification.md](specification.md), [original build specification](../archive/reference/Git_Project_Assistant_Build_Spec.md). |
 
 ### 38.2 Primary external references
 

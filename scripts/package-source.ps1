@@ -5,9 +5,9 @@ New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
 $appVersion = ([xml][IO.File]::ReadAllText((Join-Path $workspace 'Directory.Build.props'))).Project.PropertyGroup.Version
 $zipPath = Join-Path $artifacts ('GitCompass-' + $appVersion + '-source.zip')
 $rootFiles = @('.gitignore', 'README.md', 'THIRD_PARTY_NOTICES.md', 'global.json', 'NuGet.Config', 'GitCompass.sln', 'Directory.Build.props', 'Directory.Packages.props')
-$rootFiles += @(('output/pdf/GitCompass-Functional-Documentation-' + $appVersion + '.pdf'), ('output/pdf/GitCompass-Functional-Documentation-' + $appVersion + '.html'))
+$rootFiles += @(('archive/output/pdf/GitCompass-Functional-Documentation-' + $appVersion + '.pdf'), ('archive/output/pdf/GitCompass-Functional-Documentation-' + $appVersion + '.html'))
 $files = @($rootFiles | ForEach-Object { Get-Item -LiteralPath (Join-Path $workspace $_) })
-foreach ($folder in @('src', 'tests', 'docs', 'reference', 'assets', 'scripts')) {
+foreach ($folder in @('src', 'tests', 'docs', 'archive', 'assets', 'scripts')) {
     $files += @(Get-ChildItem -LiteralPath (Join-Path $workspace $folder) -File -Recurse -Force | Where-Object {
         $relative = $_.FullName.Substring($workspace.Length + 1)
         $relative -notmatch '(^|[\\/])(bin|obj|node_modules|__pycache__|\.git|\.tools|\.artifacts|artifacts)([\\/]|$)'

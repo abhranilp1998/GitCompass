@@ -6,11 +6,11 @@ The [beginner walkthrough and Fluent verification record](beginner-fluent-update
 
 ## 13 October 2026 inspection update: 0.1.1
 
-The separate 0.1.1 trial adds explicit branch-history viewing in Read-only and Monitor only, truthful guidance for folders without Git, disabled terminal/remote controls where access or repository setup does not permit them, and suppression of implicit partial-clone fetch during inspection. The [inspection update record](inspection-update-0.1.1.md) contains current executed results, including **103 real-Git assertions** and **38 native UI checks**. The source checkout's `docs/package-report.md`, kept outside the portable ZIP, records the new versioned application archive and its checks.
+The separate 0.1.1 trial adds explicit branch-history viewing in Read-only and Monitor only, truthful guidance for folders without Git, disabled terminal/remote controls where access or repository setup does not permit them, and suppression of implicit partial-clone fetch during inspection. The [inspection update record](../archive/docs/inspection-update-0.1.1.md) contains current executed results, including **103 real-Git assertions** and **38 native UI checks**. The source checkout's `docs/package-report.md`, kept outside the portable ZIP, records the new versioned application archive and its checks.
 
 The remaining sections below retain the original **0.1.0 verification baseline** from 12 October. Historical counts and package identities are not evidence by themselves for the later build. The update record and package report distinguish the current reruns from that original baseline.
 
-The original build pack is preserved unchanged in `reference/`; [specification.md](specification.md) records its role and the GitCompass naming decision. This record distinguishes a runnable implementation, executed automated assertions, and manual/external acceptance. The internal portable build is not a signed production release and does not by itself close all P0/P1 gates.
+The original build pack is preserved unchanged in `archive/reference/`; [specification.md](specification.md) records its role and the GitCompass naming decision. This record distinguishes a runnable implementation, executed automated assertions, and manual/external acceptance. The internal portable build is not a signed production release and does not by itself close all P0/P1 gates.
 
 ## Original 0.1.0 environment snapshot
 

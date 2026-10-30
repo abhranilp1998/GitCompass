@@ -2,7 +2,7 @@
 
 ## Current trial: 0.1.1, 13 October 2026
 
-The separate **unsigned Windows x64 internal trial** adds branch-history viewing in Read-only and Monitor only, ordinary-folder guidance, clearer disabled terminal controls, and suppression of implicit partial-clone downloads during inspection. See [the inspection update record](inspection-update-0.1.1.md) for behavior and the executed source checks. This report remains outside the portable ZIP because it contains that ZIP's final checksum.
+The separate **unsigned Windows x64 internal trial** adds branch-history viewing in Read-only and Monitor only, ordinary-folder guidance, clearer disabled terminal controls, and suppression of implicit partial-clone downloads during inspection. See [the inspection update record](../archive/docs/inspection-update-0.1.1.md) for behavior and the executed source checks. This report remains outside the portable ZIP because it contains that ZIP's final checksum.
 
 | Portable artifact | Verified value |
 | --- | --- |
@@ -29,7 +29,7 @@ The two original 0.1.0 archives retain the exact SHA256 values recorded below, a
 
 ## Original 0.1.0 package identity
 
-The Windows x64 portable build is an **unsigned internal trial**. Its runnable implementation and executed checks are recorded in [verification.md](verification.md); [task-handoff.md](task-handoff.md) reconciles the original and resumed departments. This report stays outside the portable ZIP so the ZIP checksum cannot depend on a document containing its own checksum.
+The Windows x64 portable build is an **unsigned internal trial**. Its runnable implementation and executed checks are recorded in [verification.md](verification.md); [task-handoff.md](../archive/docs/task-handoff.md) reconciles the original and resumed departments. This report stays outside the portable ZIP so the ZIP checksum cannot depend on a document containing its own checksum.
 
 | Portable artifact | Recorded value |
 | --- | --- |
@@ -55,7 +55,7 @@ The package retains full .NET, WPF, MVVM Toolkit, WebView2 SDK, Windows SDK and 
 
 The companion [GitCompass-0.1.0-source.zip](../artifacts/GitCompass-0.1.0-source.zip) has a separate [SHA256 companion](../artifacts/GitCompass-0.1.0-source.zip.sha256). The source checksum is deliberately not embedded here because this report is included in that archive. `scripts/package-source.ps1` writes the selected source/reference/documentation/assets/scripts and a per-file `source-manifest.json`, then checks every archived entry's size and SHA256. Development tool caches, `.git`, test fixtures and generated build outputs are excluded.
 
-The original build-pack specification and four UI concepts remain in the source archive's `reference/`. Use [development-environment.md](development-environment.md) to open/build the solution and [user-guide.md](user-guide.md) for the beginner workflow.
+The original build-pack specification and four UI concepts remain in the source archive's `archive/reference/`. Use [development-environment.md](development-environment.md) to open/build the solution and [user-guide.md](user-guide.md) for the beginner workflow.
 
 ## Acceptance still open
 

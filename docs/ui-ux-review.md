@@ -28,7 +28,7 @@ The review uses all four supplied concept images and fourteen client-area render
 
 This is a visual review of those states, with a limited source check of accessible names, focus styles, graph labels and theme colors. It does not establish complete workflow usability, screen-reader behavior or accessibility compliance. The WPF captures show the application client area at 96 DPI, not the OS title bar, folder picker or live WebView2 terminal.
 
-Concepts inspected: [folder selection](../reference/01-project-folder.png), [status and next steps](../reference/02-status-and-next-steps.png), [history and learning](../reference/03-history-and-learning.png), [output and terminal](../reference/04-output-and-terminal.png).
+Concepts inspected: [folder selection](../archive/reference/01-project-folder.png), [status and next steps](../archive/reference/02-status-and-next-steps.png), [history and learning](../archive/reference/03-history-and-learning.png), [output and terminal](../archive/reference/04-output-and-terminal.png).
 
 ## Reviewed steps
 

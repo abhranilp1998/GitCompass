@@ -1,6 +1,6 @@
 # GitCompass architecture
 
-Application name: GitCompass. The original build pack is retained unchanged in `reference/`.
+Application name: GitCompass. The original build pack is retained unchanged in `archive/reference/`.
 
 The desktop app follows the supplied specification: .NET 10, C#, WPF with Fluent styling, an installed Git CLI, deterministic advice, a separate GitHub REST adapter, and ConPTY with local xterm.js in WebView2. Domain facts and advice have no UI or process dependencies. Application coordinates reviewed operations. Git and hosted adapters perform typed work; the desktop composition root binds them together.
 

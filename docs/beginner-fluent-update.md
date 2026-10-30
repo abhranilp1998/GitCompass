@@ -1,6 +1,6 @@
 # Beginner walkthrough and Windows 11 Fluent update
 
-13 October 2026. This is a source-development update following the [beginner audit](beginner-experience-review-2026-10-13.md) and [walkthrough proposal](beginner-walkthrough-proposal.md). The existing 0.1.1 portable ZIP and exported manual are earlier artifacts; they have not been regenerated for this change.
+13 October 2026. This is a source-development update following the [beginner audit](../archive/docs/beginner-experience-review-2026-10-13.md) and [walkthrough proposal](beginner-walkthrough-proposal.md). The existing 0.1.1 portable ZIP and exported manual are earlier artifacts; they have not been regenerated for this change.
 
 ## Try the current build
 
