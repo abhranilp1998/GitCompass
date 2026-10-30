@@ -184,6 +184,16 @@ internal static class BeginnerWorkflowChecks
         window.ConfigureView("Walkthrough", "Light");
         check(Texts(window).Any(text => text.Contains("Practice missions")), "the guided practice repository shows the practice missions");
         check(HasButton(window, "Pause walkthrough") && HasButton(window, "Exit walkthrough"), "missions offer a direct Pause and a confirmed Exit");
+        check(Descendants<ProgressBar>(window).Any(bar => AutomationProperties.GetName(bar) == "Mission 1 of 5"), "missions show a 'Mission 1 of 5' progress bar");
+        window.ConfigureView("Changes", "Light"); window.UpdateLayout();
+        var ideasItem = Descendants<ListBoxItem>(window).First(item => item.Tag is FileState { Path: "ideas.txt" });
+        ((ListBox)ItemsControl.ItemsControlFromItemContainer(ideasItem)).SelectedItem = ideasItem; await Until(window, () => IsIdle(window));
+        await UntilAsync(window, async () => (await state.LoadBeginnerGuideAsync()).MissionIndex == BeginnerMissions.SeeChange);
+        var welcomeItem = Descendants<ListBoxItem>(window).First(item => item.Tag is FileState { Path: "welcome.txt" });
+        ((ListBox)ItemsControl.ItemsControlFromItemContainer(welcomeItem)).SelectedItem = welcomeItem;
+        await UntilAsync(window, async () => (await state.LoadBeginnerGuideAsync()).MissionIndex == BeginnerMissions.Stage);
+        check((await state.LoadBeginnerGuideAsync()).MissionIndex == BeginnerMissions.Stage, "opening the welcome.txt diff (not ideas.txt, not just the page) completes mission 1");
+        window.ConfigureView("Walkthrough", "Light");
         await InvokeAsync(window, "SetMissionAsync", BeginnerMissions.Commit, "Walkthrough");
         Click(window, "Pause walkthrough"); await Until(window, () => IsIdle(window) && !HasButton(window, "Exit walkthrough")); check(!(await state.LoadBeginnerGuideAsync()).Active, "pause leaves the walkthrough without a prompt");
         await InvokeAsync(window, "ResumeBeginnerAsync"); await Until(window, () => IsIdle(window) && Texts(window).Any(text => text.Contains("Mission 3 of 5")));

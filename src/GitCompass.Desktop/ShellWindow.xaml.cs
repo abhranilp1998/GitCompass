@@ -525,7 +525,7 @@ public partial class ShellWindow : Window
         list.SelectionChanged += async (_, _) =>
         {
             if (list.SelectedItem is not ListBoxItem { Tag: FileState file }) return;
-            try { var result = await workspace!.DiffAsync(model.Snapshot!.ProjectId, new(diffKind, file.Path)); diff.Text = result.Text + (result.Truncated ? "\n[Diff truncated]" : "") + (result.Problem is null ? "" : "\n" + result.Problem); details.IsExpanded = true; }
+            try { var result = await workspace!.DiffAsync(model.Snapshot!.ProjectId, new(diffKind, file.Path)); diff.Text = result.Text + (result.Truncated ? "\n[Diff truncated]" : "") + (result.Problem is null ? "" : "\n" + result.Problem); details.IsExpanded = true; if (result.Problem is null) await OnBeginnerDiffViewedAsync(file.Path); }
             catch (Exception e) { diff.Text = e.Message; }
         };
         panel.Children.Add(OperationButton(operation == OperationKind.Stage ? "Review staging selected files" : "Review unstaging selected files", operation, async () =>

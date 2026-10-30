@@ -34,6 +34,24 @@ public static class BeginnerMissions
         };
     }
 
-    public static int ViewedChanges(int index) => Clamp(index) == SeeChange ? Stage : Clamp(index);
+    public const string PracticeChangedFile = "welcome.txt";
+
+    /// <summary>Mission 1 completes only when the welcome.txt diff itself is opened, not merely the Changed files page.</summary>
+    public static int ViewedDiff(int index, string? path) =>
+        Clamp(index) == SeeChange && string.Equals(path?.Replace('\\', '/'), PracticeChangedFile, StringComparison.OrdinalIgnoreCase) ? Stage : Clamp(index);
+
+    /// <summary>Short "you did it" line shown when a mission completes.</summary>
+    public static string Celebration(int completed) => completed switch
+    {
+        SeeChange => "Nice eye! You just read a diff: red lines were removed, green lines were added.",
+        Stage => "Staged! welcome.txt is lined up for your next save.",
+        Commit => "Saved! That version now lives in your project's history.",
+        BranchMerge => "Merged! Your idea from try-idea is now part of main.",
+        Push => "Shared! Your saved versions are on GitHub.",
+        _ => "Mission complete.",
+    };
+
+    /// <summary>Progress label such as "Mission 2 of 5", or "All 5 missions complete".</summary>
+    public static string ProgressLabel(int index) => Clamp(index) >= Done ? $"All {Count} missions complete" : $"Mission {Clamp(index) + 1} of {Count}";
     public static int FinishWithoutPush(int index) => Clamp(index) == Push ? Done : Clamp(index);
 }

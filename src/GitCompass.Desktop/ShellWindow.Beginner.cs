@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using GitCompass.Domain;
 using GitCompass.Infrastructure.Git;
@@ -56,9 +57,10 @@ public partial class ShellWindow
             var next = BeginnerMissions.Advance(beginner.MissionIndex, kind, state);
             if (next != beginner.MissionIndex)
             {
+                var completed = beginner.MissionIndex;
                 beginner = beginner with { MissionIndex = next, SavedCommitId = kind == OperationKind.Commit ? model.Snapshot.HeadId : beginner.SavedCommitId };
                 await SaveBeginnerAsync();
-                Banner(next == BeginnerMissions.Done ? "All missions complete. Open the walkthrough for your recap." : "Mission complete. Next: " + BeginnerMissions.Missions[next].Title + ". Return to the walkthrough when you are ready.");
+                CelebrateMission(completed, next);
             }
             return;
         }
@@ -439,6 +441,23 @@ public partial class ShellWindow
 
     private bool IsPracticeProject => beginner.GuidedPractice && model.Snapshot is not null && SameFolder(beginner.PracticeFolder, model.Snapshot.Project.SelectedFolder);
 
+    /// <summary>The "small moment": a ✓ banner naming the mission just finished, what it means, and what's next.</summary>
+    private void CelebrateMission(int completed, int next) =>
+        Banner($"✓ Mission {completed + 1} of {BeginnerMissions.Count} complete. {BeginnerMissions.Celebration(completed)} " +
+            (next >= BeginnerMissions.Done ? "That's all five. Open the walkthrough for your recap." : "Next: " + BeginnerMissions.Missions[next].Title + "."));
+
+    /// <summary>Called when a file diff is opened in Changed files. Only the welcome.txt diff completes mission 1.</summary>
+    private async Task OnBeginnerDiffViewedAsync(string path)
+    {
+        if (!beginner.Active || !IsPracticeProject) return;
+        var next = BeginnerMissions.ViewedDiff(beginner.MissionIndex, path);
+        if (next == beginner.MissionIndex) return;
+        var completed = beginner.MissionIndex;
+        beginner = beginner with { MissionIndex = next };
+        await SaveBeginnerAsync();
+        CelebrateMission(completed, next);
+    }
+
     private async Task SetMissionAsync(int index, string? page = null)
     {
         beginner = beginner with { MissionIndex = BeginnerMissions.Clamp(index) };
@@ -451,6 +470,9 @@ public partial class ShellWindow
         var index = BeginnerMissions.Clamp(beginner.MissionIndex);
         Heading("Practice missions", index >= BeginnerMissions.Done ? "All missions complete." : $"Mission {index + 1} of {BeginnerMissions.Count} · every change is reviewed before it runs.");
         var top = Row(); top.Children.Add(Action("Pause walkthrough", PauseBeginnerAsync)); top.Children.Add(Action("Exit walkthrough", ExitBeginnerAsync)); PageContent.Children.Add(top);
+        var progress = new ProgressBar { Minimum = 0, Maximum = BeginnerMissions.Count, Value = index, Height = 8, Margin = new Thickness(0, 8, 0, 4) };
+        AutomationProperties.SetName(progress, BeginnerMissions.ProgressLabel(index)); PageContent.Children.Add(progress);
+        Text(PageContent, BeginnerMissions.ProgressLabel(index), true);
         if (index >= BeginnerMissions.Done)
         {
             var recap = new StackPanel(); Subheading(recap, "You did it");
@@ -477,7 +499,7 @@ public partial class ShellWindow
                 var actions = Row();
                 switch (i)
                 {
-                    case BeginnerMissions.SeeChange: actions.Children.Add(Action("Open Changed files", () => SetMissionAsync(BeginnerMissions.ViewedChanges(index), "Changes"), true)); break;
+                    case BeginnerMissions.SeeChange: Text(content, "Tip: in Changed files, select welcome.txt to open its diff.", true); actions.Children.Add(Action("Open Changed files", () => Navigate("Changes"), true)); break;
                     case BeginnerMissions.Stage: case BeginnerMissions.Commit: actions.Children.Add(Action("Open Changed files", () => Navigate("Changes"), true)); break;
                     case BeginnerMissions.BranchMerge:
                         Text(content, "Files follow the branch you are on. Switching back to main hides ideas.txt until you merge; nothing is lost.", true);

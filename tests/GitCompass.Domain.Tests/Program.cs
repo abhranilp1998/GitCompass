@@ -72,7 +72,9 @@ Check(Enumerable.Range(0, 50).Select(i => SkipQuiz.PickGreeting(new Random(i))).
 // Practice missions advance only on succeeded reviewed operations, in order.
 var mission = BeginnerMissions.SeeChange;
 Check(BeginnerMissions.Advance(mission, OperationKind.Stage, OperationState.Failed) == BeginnerMissions.SeeChange, "Failed staging does not advance a mission");
-mission = BeginnerMissions.ViewedChanges(mission); Check(mission == BeginnerMissions.Stage, "Viewing changes completes mission 1");
+Check(BeginnerMissions.ViewedDiff(mission, "ideas.txt") == BeginnerMissions.SeeChange && BeginnerMissions.ViewedDiff(mission, null) == BeginnerMissions.SeeChange, "Opening another file or only the page does not complete mission 1");
+mission = BeginnerMissions.ViewedDiff(mission, "welcome.txt"); Check(mission == BeginnerMissions.Stage, "Opening the welcome.txt diff completes mission 1");
+Check(BeginnerMissions.ProgressLabel(BeginnerMissions.Stage) == "Mission 2 of 5" && BeginnerMissions.ProgressLabel(BeginnerMissions.Done) == "All 5 missions complete" && Enumerable.Range(0, 5).All(i => BeginnerMissions.Celebration(i).Length > 0), "Missions have progress labels and a completion line each");
 mission = BeginnerMissions.Advance(mission, OperationKind.Stage, OperationState.Succeeded); Check(mission == BeginnerMissions.Commit, "Successful staging completes mission 2");
 Check(BeginnerMissions.Advance(mission, OperationKind.Merge, OperationState.Succeeded) == BeginnerMissions.Commit, "A merge cannot skip the commit mission");
 mission = BeginnerMissions.Advance(mission, OperationKind.Commit, OperationState.Succeeded); Check(mission == BeginnerMissions.BranchMerge, "Successful commit completes mission 3");
