@@ -63,6 +63,7 @@ using (var lease = access.Acquire(linkedId, OperationKind.Terminal)) Denied(() =
 Check(Welcome.Options.Length == 3 && Welcome.Lines.Length is >= 2 and <= 3, "Welcome screen has 2-3 plain lines and three experience choices");
 Check(Welcome.Route(ExperienceLevel.BrandNew) == WelcomeRoute.FullWalkthrough && Welcome.Route(ExperienceLevel.KnowALittle) == WelcomeRoute.ShortWalkthrough && Welcome.Route(ExperienceLevel.KnowGit) == WelcomeRoute.SkipQuiz, "Experience picker routes brand new → full, a little → short, I know Git → skip quiz");
 Check(Welcome.Options.All(o => Welcome.IsValidState(Welcome.ToState(o.Level))) && Welcome.ShowsShortWalkthrough(Welcome.ToState(ExperienceLevel.KnowALittle)) && !Welcome.ShowsShortWalkthrough("New") && !Welcome.IsValidState("Expert"), "Stored experience values are valid and only 'a little' shortens the walkthrough");
+Check(GitSetupStep.Title.Contains("install Git") && GitSetupStep.DownloadUrl == "https://git-scm.com/download/win" && GitSetupStep.CheckAgainLabel == "I've installed it, check again", "Missing-Git step is one plain install step with download and check-again");
 Check(SkipQuiz.Questions.Length == 3 && SkipQuiz.Greetings.Length >= 5, "Skip quiz has three questions and several playful greetings");
 Check(SkipQuiz.Missed(SkipQuiz.Questions.Select(q => (int?)q.Correct).ToArray()).Length == 0, "All correct answers pass the skip quiz");
 Check(SkipQuiz.Missed([null, null, null]).Length == 3 && SkipQuiz.Missed([]).Length == 3, "Unanswered questions count as missed");

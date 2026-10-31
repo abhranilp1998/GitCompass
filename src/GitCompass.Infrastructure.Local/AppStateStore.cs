@@ -37,6 +37,8 @@ public sealed record BeginnerGuideState
     public bool WelcomeSeen { get; init; }
     /// <summary>Experience picked on the welcome screen: "", "New", "Some" or "Git". Added in schema 3.</summary>
     public string Experience { get; init; } = "";
+    /// <summary>True once the user chose "Let GitCompass make changes here" in the GitCompass-created guided practice folder. Optional field (schema 3, default false).</summary>
+    public bool PracticeChangesAllowed { get; init; }
 
     /// <summary>Upgrades older records step by step. Schema 1→2: a recorded first save means the stage and commit missions are complete.
     /// Schema 2→3: someone with an existing record has already used GitCompass, so the first-launch welcome is not shown again.</summary>

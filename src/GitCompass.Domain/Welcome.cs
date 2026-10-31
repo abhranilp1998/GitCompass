@@ -34,3 +34,15 @@ public static class Welcome
     public static bool IsValidState(string? value) => value is "" or "New" or "Some" or "Git";
     public static bool ShowsShortWalkthrough(string? experience) => experience == "Some";
 }
+
+/// <summary>Shown before the welcome picker when git.exe can't be found.</summary>
+public static class GitSetupStep
+{
+    public const string Title = "First, install Git (free, ~2 min)";
+    public const string Body = "GitCompass uses a free tool called Git to remember versions of your files. Download it, run the installer and keep clicking Next (the default choices are fine), then come back here.";
+    public const string DownloadLabel = "Download Git";
+    public const string DownloadUrl = "https://git-scm.com/download/win";
+    public const string CheckAgainLabel = "I've installed it, check again";
+    public const string StillMissing = "Still can't find Git. If the installer finished, close and reopen GitCompass, or set git.exe's location in Settings > Advanced.";
+    public const string LaterLabel = "Not now";
+}

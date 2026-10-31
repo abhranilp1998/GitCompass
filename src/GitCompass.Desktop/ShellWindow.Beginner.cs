@@ -43,6 +43,7 @@ public partial class ShellWindow
 
     private async Task OnBeginnerProjectOpenedAsync()
     {
+        RestorePracticeAccess();
         if (!beginner.Active || model.Snapshot is null) return;
         if (!IsGuideProject)
             beginner = beginner with { ProjectFolder = model.Snapshot.Project.SelectedFolder, Intent = "", TeamCopyFolder = null, SavedCommitId = null };
@@ -126,7 +127,22 @@ public partial class ShellWindow
     public async Task ShowWelcomeIfFirstLaunchAsync()
     {
         if (!beginnerStateReadable || beginner.WelcomeSeen) return;
+        if (!await EnsureGitBeforeWelcomeAsync()) return; // welcome waits until Git is installed (shown again next launch)
         await ShowWelcomeAsync();
+    }
+
+    /// <summary>Git check before the welcome picker: one plain install step with Download and "check again".</summary>
+    private async Task<bool> EnsureGitBeforeWelcomeAsync()
+    {
+        var stillMissing = false;
+        while (workspace is null)
+        {
+            var dialog = new GitSetupDialog(this, stillMissing);
+            if (dialog.ShowDialog() != true || !dialog.CheckAgain) return false;
+            setupError = null; await InitializeAsync();
+            stillMissing = true;
+        }
+        return true;
     }
 
     private async Task ShowWelcomeAsync()
@@ -309,16 +325,44 @@ public partial class ShellWindow
         Navigate("Walkthrough");
     }
 
+    public const string PracticeAllowLabel = "Let GitCompass make changes here";
+    public const string PracticeAllowExplanation = "This is your own practice folder, made by GitCompass. Allowing changes lets the missions save versions here. You still confirm each step.";
+
+    /// <summary>Guided practice folders created by GitCompass remember the user's "Let GitCompass make changes here" choice across sessions.</summary>
+    private void RestorePracticeAccess()
+    {
+        if (workspace is null || model.Snapshot is null || !IsPracticeProject || !beginner.PracticeChangesAllowed) return;
+        var id = model.Snapshot.ProjectId;
+        if (workspace.Access.Get(id).Level == AccessLevel.AllowChanges) return;
+        workspace.SetTrusted(id, true);
+        workspace.Access.SetLevel(id, AccessLevel.AllowChanges);
+    }
+
+    private async Task AllowPracticeChangesAsync()
+    {
+        if (workspace is null || model.Snapshot is null || !IsPracticeProject) return;
+        beginner = beginner with { PracticeChangesAllowed = true };
+        await SaveBeginnerAsync();
+        RestorePracticeAccess();
+        await RefreshAsync(false);
+        UpdateContext(); RenderPage();
+    }
+
     private void ExplainBeginnerAccess(Panel target)
     {
         if (model.Snapshot is null || workspace is null) return;
         var grant = workspace.Access.Get(model.Snapshot.ProjectId);
-        if (grant.Level != AccessLevel.AllowChanges || grant.PendingLevel is not null)
+        if ((grant.Level != AccessLevel.AllowChanges || grant.PendingLevel is not null) && IsPracticeProject)
         {
-            Text(target, "Before changing this project, use Project access above and choose Allow changes. Read the trust explanation first. This permission lasts for the app session; you can return to Read-only at any time.", true);
+            Text(target, PracticeAllowExplanation, true);
+            target.Children.Add(Action(PracticeAllowLabel, AllowPracticeChangesAsync, true));
+        }
+        else if (grant.Level != AccessLevel.AllowChanges || grant.PendingLevel is not null)
+        {
+            Text(target, "GitCompass is only looking at this folder right now. To save versions here, open the \"Project access\" box at the top of the window and choose Allow changes. You can switch back to Read-only any time.", true);
             target.Children.Add(Action("Show project access control", () => { AccessSelector.Focus(); AccessSelector.IsDropDownOpen = true; }));
         }
-        else Text(target, "Allow changes is enabled. Each operation still needs its own review before it runs.", true);
+        else Text(target, "GitCompass can make changes here. You still confirm each step before it runs.", true);
     }
 
     private void BuildWalkthrough()
@@ -559,8 +603,9 @@ public partial class ShellWindow
                         actions.Children.Add(Action("Learn about merging", () => ShowLesson("git-merge")));
                         break;
                     case BeginnerMissions.Push:
-                        Text(content, "Optional. Use an empty repository you own. Your practice files become visible to anyone who can see that repository.", true);
-                        actions.Children.Add(Action("Set up an online connection", BuildProjectSetup));
+                        Text(content, "Optional. Your practice files will be visible to anyone who can see the repository you upload to.", true);
+                        BuildGitHubSteps(content);
+                        actions.Children.Add(Action("Paste the web address and upload", BuildProjectSetup));
                         actions.Children.Add(Action("Finish without uploading", () => SetMissionAsync(BeginnerMissions.FinishWithoutPush(index)), true));
                         break;
                 }

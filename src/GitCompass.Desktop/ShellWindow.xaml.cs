@@ -150,14 +150,14 @@ public partial class ShellWindow : Window
         if (requested != AccessLevel.ReadOnly && !snapshot.Project.Trusted)
         {
             var explanation = requested == AccessLevel.MonitorOnly
-                ? "GitCompass can check for team updates, without applying them to your project files. Checking may use this project's connection and sign-in tools."
-                : "GitCompass can save versions, apply reviewed updates, upload saved work, and open a terminal for this session. Each guided change still has a review before it runs. Project settings may run configured hooks, filters or connection tools.";
-            if (MessageBox.Show(this, explanation + "\n\nOnly enable access for a project whose origin and configuration you trust. Trust this project and enable " + AccessText(requested) + "?", "Review project access — " + snapshot.Project.DisplayName, MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) { UpdateContext(); return; }
+                ? "GitCompass will check the online copy for new versions. It won't change your files."
+                : "GitCompass will be able to save versions, bring in updates and upload your work in this folder. You still confirm each step before it runs.";
+            if (MessageBox.Show(this, explanation + "\n\nOnly do this for folders you made yourself or got from someone you trust, because a project can include its own settings that run when Git works. Allow " + AccessText(requested) + " for this folder?", "Allow GitCompass to work in " + snapshot.Project.DisplayName, MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) { UpdateContext(); return; }
             workspace.SetTrusted(snapshot.ProjectId, true);
         }
         if (requested < old.Level && (sessions.Any(s => s.Session.ProjectId == snapshot.ProjectId.ToString() && !s.Session.IsClosed) || model.Busy))
         {
-            if (MessageBox.Show(this, "This change revokes queued work and cancels app-owned operations. Interactive sessions for this project will close, including their child processes. The stricter mode becomes active after owned activity ends. Continue?", "Finish access transition", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) { UpdateContext(); return; }
+            if (MessageBox.Show(this, "Switching to a safer mode stops anything GitCompass is doing in this folder and closes its terminal windows. Your files are safe. Continue?", "Switch to a safer mode", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) { UpdateContext(); return; }
         }
         workspace.Access.SetLevel(snapshot.ProjectId, requested);
         if (requested == AccessLevel.ReadOnly) workspace.SetMonitoring(snapshot.ProjectId, false);
@@ -195,8 +195,8 @@ public partial class ShellWindow : Window
             NewTerminalButton.IsEnabled = !model.Busy && Permission(snapshot.ProjectId, OperationKind.Terminal);
             NewTerminalButton.ToolTip = grant.Level < AccessLevel.AllowChanges ? "Requires Allow changes: a real shell can modify files. Use Branches or History graph to inspect branches safely." : "An interactive shell can modify files. An active operation or access transition may need to finish first.";
             ToolTipService.SetShowOnDisabled(NewTerminalButton, true);
-            TerminalModeText.Text = grant.PendingLevel is not null ? "Changing access: GitCompass is closing open sessions first." : grant.Level == AccessLevel.AllowChanges ? "Each terminal stays linked to the project it was opened in." : "To type commands here, first choose Allow changes at the top.";
-            AccessHelper.Text = grant.PendingLevel is not null ? "Locking this project: owned activity must finish closing before the stricter mode is active." : grant.Level switch
+            TerminalModeText.Text = grant.PendingLevel is not null ? "Switching mode: closing open terminal windows first." : grant.Level == AccessLevel.AllowChanges ? "Each terminal stays linked to the project it was opened in." : "To type commands here, first choose Allow changes at the top.";
+            AccessHelper.Text = grant.PendingLevel is not null ? "Switching to the safer mode as soon as running steps stop." : grant.Level switch
             {
                 AccessLevel.ReadOnly => "Read-only: look around without changing the project. Choose Allow changes when you are ready to save a version.",
                 AccessLevel.MonitorOnly => "Monitor only: look around and check for team updates. Saving versions or applying updates requires Allow changes.",
@@ -495,16 +495,39 @@ public partial class ShellWindow : Window
         actions.Children.Add(Action("Choose another folder", () => PickFolder(this, new RoutedEventArgs())));
         PageContent.Children.Add(actions);
     }
+    public const string GitHubSignInLabel = "Sign in to GitHub";
+    public const string UploadSignInWarning = "When you upload for the first time, a GitHub sign-in window from Git will open. That's expected: choose \"Sign in with your browser\" and approve it on github.com.";
+    /// <summary>Three plain steps to get an empty GitHub repository and its web address (Mission 5 and Project setup).</summary>
+    private void BuildGitHubSteps(Panel target)
+    {
+        Subheading(target, "Put your project on GitHub in 3 steps");
+        Text(target, "1. Make a free GitHub account (skip if you have one).", true);
+        target.Children.Add(DocChip("https://github.com/signup"));
+        Text(target, "2. Create a new, empty repository (an online project folder). Give it a name, and don't tick \"Add a README\".", true);
+        target.Children.Add(DocChip("https://github.com/new"));
+        Text(target, "3. Copy its web address (it looks like https://github.com/your-name/your-project) and paste it below.", true);
+    }
     private void BuildProjectSetup()
     {
-        PageContent.Children.Clear(); reviewing = true; Heading("Project setup", "Tell Git your name and, if you have one, where the online copy (remote) lives. Only use details from you or your team.");
-        var name = Input(PageContent, "Your name (shown on each saved version)", ""); var email = Input(PageContent, "Your email (shown on each saved version)", "");
+        PageContent.Children.Clear(); reviewing = true; Heading("Project setup", "Add your name for saved versions, and connect an online copy on GitHub when you're ready.");
+        var name = Input(PageContent, "Your name (shown on each saved version)", model.Snapshot?.AuthorName ?? ""); var email = Input(PageContent, "Your email (shown on each saved version)", model.Snapshot?.AuthorEmail ?? "");
         PageContent.Children.Add(OperationButton("Preview saving your name and email", OperationKind.ConfigureIdentity, async () => await RequestAsync(OperationKind.ConfigureIdentity, authorName: name.Text, authorEmail: email.Text)));
         Text(PageContent, "This name and email label your saved versions. It is not the same as signing in to GitHub.", true);
-        var remote = Input(PageContent, "Short name for the online copy (remote) — usually origin", "origin"); var url = Input(PageContent, "Web address of the online copy (repository URL)", ""); var branch = Input(PageContent, "Line of work to follow (branch) — leave empty if unsure", "");
-        PageContent.Children.Add(OperationButton("Preview connecting the online copy (remote)", OperationKind.ConfigureRemote, async () => await RequestAsync(OperationKind.ConfigureRemote, remote: remote.Text, remoteUrl: url.Text, branch: branch.Text.Length > 0 ? branch.Text : null, setUpstream: branch.Text.Length > 0)));
-        Subheading(PageContent, "First publication"); Text(PageContent, "Review ignore rules, files, and a first local commit before publication. An existing remote with unrelated history requires migration review. Keep the ZIP backup until a clean verification clone has been checked.", true);
-        var publishBranch = Input(PageContent, "Publication destination branch", model.Snapshot?.Branch ?? "");
+        var github = new StackPanel(); BuildGitHubSteps(github); AddCard(PageContent, github);
+        var url = Input(PageContent, "Web address of your GitHub repository", "");
+        var current = model.Snapshot?.Branch ?? "main";
+        var advanced = new StackPanel();
+        var remote = Input(advanced, "Short name for the online copy (remote)", "origin");
+        var publishBranch = Input(advanced, "Line of work to upload to (branch)", current);
+        PageContent.Children.Add(new Expander { Header = "Advanced (most people can skip this)", Content = advanced });
+        PageContent.Children.Add(OperationButton("Preview connecting the online copy (remote)", OperationKind.ConfigureRemote, async () =>
+        {
+            if (string.IsNullOrWhiteSpace(url.Text)) { Banner("Paste your GitHub repository's web address first (step 3)."); return; }
+            await RequestAsync(OperationKind.ConfigureRemote, remote: remote.Text, remoteUrl: url.Text.Trim(), branch: null, setUpstream: false);
+        }));
+        Subheading(PageContent, "Upload your saved versions");
+        Text(PageContent, "This copies your saved versions to GitHub. Changes you haven't saved yet stay on your computer only.", true);
+        Text(PageContent, UploadSignInWarning, true);
         PageContent.Children.Add(OperationButton("Preview your first upload (push)", OperationKind.Push, async () => await RequestAsync(OperationKind.Push, remote: remote.Text, branch: publishBranch.Text, setUpstream: true)));
         PageContent.Children.Add(Action("Back to Overview", () => Navigate("Overview")));
     }
@@ -806,8 +829,7 @@ public partial class ShellWindow : Window
         var owner = Input(PageContent, "Target repository owner", match.Success ? match.Groups[1].Value : ""); var repository = Input(PageContent, "Target repository name", match.Success ? match.Groups[2].Value : "");
         if (string.IsNullOrWhiteSpace(EffectiveGitHubClientId))
         {
-            AddCard(PageContent, "GitHub sign-in isn't set up in this copy of GitCompass yet. Everything on your computer still works. If your team gave you a GitHub App client ID, add it in Settings.");
-            PageContent.Children.Add(Action("Open connection settings", () => Navigate("Settings")));
+            AddCard(PageContent, "Review requests aren't available in this test version of GitCompass yet. Saving versions and uploading to GitHub still work.");
         }
         var output = new StackPanel();
         async Task ReadStatus(int number)
@@ -825,7 +847,7 @@ public partial class ShellWindow : Window
                 card.Children.Add(Action("Open pull request in browser", () => OpenLink(status.Request.HtmlUrl))); AddCard(output, card); output.BringIntoView();
             });
         }
-        var signIn = Action("Sign in to GitHub API", SignIn); signIn.IsEnabled = !string.IsNullOrWhiteSpace(EffectiveGitHubClientId); PageContent.Children.Add(signIn);
+        var signIn = Action(GitHubSignInLabel, SignIn); signIn.IsEnabled = !string.IsNullOrWhiteSpace(EffectiveGitHubClientId); PageContent.Children.Add(signIn);
         PageContent.Children.Add(OperationButton("See review requests (pull requests)", OperationKind.GitHubRead, async () =>
         {
             await WorkAsync(async () =>
@@ -897,12 +919,12 @@ public partial class ShellWindow : Window
     private bool Permission(Guid id, OperationKind kind) { try { workspace!.Access.Authorize(id, kind); return true; } catch { return false; } }
     private async void SignIn()
     {
-        if (string.IsNullOrWhiteSpace(EffectiveGitHubClientId)) { Banner("Set the registered GitHub App public client ID in Settings first."); return; }
+        if (string.IsNullOrWhiteSpace(EffectiveGitHubClientId)) { Banner("Review requests aren't available in this test version yet. Uploading to GitHub still works."); return; }
         authenticationCancellation?.Cancel(); authenticationCancellation = new();
         try
         {
             var auth = new GitHubDeviceAuth(http, tokens, EffectiveGitHubClientId!); var device = await auth.BeginAsync(authenticationCancellation.Token);
-            reviewing = true; PageContent.Children.Clear(); Heading("Sign in to GitHub API", "Sign-in happens in your web browser. GitCompass never asks for your GitHub password."); AddCard(PageContent, "Enter code " + device.UserCode + " at " + device.VerificationUri + "\nThis request expires at " + device.ExpiresAt.ToLocalTime().ToString("t") + ".");
+            reviewing = true; PageContent.Children.Clear(); Heading(GitHubSignInLabel, "Sign-in happens in your web browser. GitCompass never asks for your GitHub password."); AddCard(PageContent, "Enter code " + device.UserCode + " at " + device.VerificationUri + "\nThis request expires at " + device.ExpiresAt.ToLocalTime().ToString("t") + ".");
             PageContent.Children.Add(Action("Open GitHub sign-in", () => OpenLink(device.VerificationUri.ToString()), true)); PageContent.Children.Add(Action("Cancel sign-in", () => { authenticationCancellation.Cancel(); Navigate("Pull requests"); }));
             await auth.CompleteAsync(device, authenticationCancellation.Token); Banner("Signed in to GitHub. Uploads may still ask you to sign in once in a separate Git window."); Navigate("Pull requests");
         }

@@ -57,6 +57,11 @@ internal static class BeginnerWorkflowChecks
         var welcomeStore = new AppStateStore(Path.Combine(stateRoot, "welcome-" + Guid.NewGuid().ToString("N")));
         await welcomeStore.SaveBeginnerGuideAsync(new BeginnerGuideState { WelcomeSeen = true, Experience = "Some" });
         check((await welcomeStore.LoadBeginnerGuideAsync()) is { WelcomeSeen: true, Experience: "Some" }, "welcome answer and experience survive save and reload");
+        await welcomeStore.SaveBeginnerGuideAsync(new BeginnerGuideState { WelcomeSeen = true, GuidedPractice = true, PracticeChangesAllowed = true });
+        check((await welcomeStore.LoadBeginnerGuideAsync()).PracticeChangesAllowed, "'Let GitCompass make changes here' is remembered for the practice folder across sessions");
+        await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":3,\"WelcomeSeen\":true}");
+        check(!(await new AppStateStore(stateRoot).LoadBeginnerGuideAsync()).PracticeChangesAllowed, "a 0.2.9 record without the practice permission field loads with it off");
+        check(ShellWindow.GitHubSignInLabel == "Sign in to GitHub" && ShellWindow.UploadSignInWarning.Contains("sign-in window") && ShellWindow.PracticeAllowLabel == "Let GitCompass make changes here", "plain GitHub sign-in label, upload sign-in pre-warning and inline practice permission button");
         await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":1,\"Intent\":\"\"}");
         check((await new AppStateStore(stateRoot).LoadBeginnerGuideAsync()).MissionIndex == BeginnerMissions.SeeChange, "schema 1 walkthrough without a save migrates to the first mission");
         var store = new AppStateStore(stateRoot);

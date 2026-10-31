@@ -778,7 +778,7 @@ User access is also constrained by the user's own repository permissions. See Gi
 ### 23.2 Device sign-in
 
 1. Save the public client ID in Settings → Advanced connection setup.
-2. Open Pull requests and choose **Sign in to GitHub API**.
+2. Open Pull requests and choose **Sign in to GitHub**.
 3. Read the verification address, temporary code and expiry.
 4. Open the official sign-in page in your system browser.
 5. Authorize the intended App and account there.
