@@ -90,4 +90,14 @@ Copy-Item -LiteralPath $published -Destination $destination -Recurse
 $zip = Join-Path $artifacts ('GitCompass-' + $appVersion + '-win-x64.zip')
 Compress-Archive -Path (Join-Path $destination '*') -DestinationPath $zip -Force
 [IO.File]::WriteAllText($zip + '.sha256', ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash + '  ' + [IO.Path]::GetFileName($zip) + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
+$iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe", "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if ($iscc) {
+    $iss = Join-Path $PSScriptRoot '..\installer\GitCompass.iss'
+    & $iscc "/DAppVersion=$appVersion" "/DSourceDir=$destination" "/DOutputDir=$artifacts" $iss
+    if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)." }
+    $setup = Join-Path $artifacts ('GitCompass-Setup-' + $appVersion + '.exe')
+    if (-not (Test-Path -LiteralPath $setup)) { throw 'Installer was not produced.' }
+    [IO.File]::WriteAllText($setup + '.sha256', ((Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash + '  ' + [IO.Path]::GetFileName($setup) + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
+    Write-Output "Built installer $setup."
+} elseif ($env:GITCOMPASS_REQUIRE_INSTALLER) { throw 'Inno Setup (ISCC.exe) not found.' }
 Write-Output "Packaged $zip ($($files.Count) manifest files)."

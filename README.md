@@ -10,13 +10,17 @@
 
 Get the latest version from the **[Releases page](https://github.com/abhranilp1998/GitCompass/releases)**.
 
-> **Latest release: 0.2.7.** Download the ZIP from the [Releases page](https://github.com/abhranilp1998/GitCompass/releases/latest), unzip it and run GitCompass.exe. To build from source instead, see [docs/DEVELOPING.md](docs/DEVELOPING.md).
+> **Latest release: 0.2.8.** On the [Releases page](https://github.com/abhranilp1998/GitCompass/releases/latest):
+>
+> - **Recommended: `GitCompass-Setup-0.2.8.exe`.** Double-click it and follow Next, Next, Finish. No administrator rights needed. It adds GitCompass to your Start menu and can be removed from Windows Settings > Apps.
+> - **Portable option: `GitCompass-0.2.8-win-x64.zip`.** Unzip the whole ZIP anywhere and run `GitCompass.exe`. Nothing is installed.
+> To build from source instead, see [docs/DEVELOPING.md](docs/DEVELOPING.md).
 >
 > The current build is an early test version. It is not digitally signed yet, so Windows may show a blue "Windows protected your PC" box the first time you open it. Choose **More info**, then **Run anyway**.
 
 ## Quick start (3 steps)
 
-1. **Download and unzip.** Unzip the **whole** ZIP file into a folder, then open `GitCompass.exe` from inside that folder.
+1. **Download and install.** Run `GitCompass-Setup-0.2.8.exe` and open GitCompass from the Start menu. (Using the ZIP instead? Unzip the **whole** file, then open `GitCompass.exe` from inside that folder.)
 2. **Try the Learn page.** It explains the basics in plain language.
 3. **Open a project.** Choose a folder. GitCompass opens it in **Read-only** mode first, so nothing in your files changes until you choose to allow it.
 
