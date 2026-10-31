@@ -48,7 +48,15 @@ internal static class BeginnerWorkflowChecks
         Directory.CreateDirectory(stateRoot);
         await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":1,\"WelcomeDismissed\":true,\"Active\":true,\"Intent\":\"OwnFiles\",\"SavedCommitId\":\"abc123\"}");
         var migrated = await new AppStateStore(stateRoot).LoadBeginnerGuideAsync();
-        check(migrated.SchemaVersion == 2 && migrated.MissionIndex == BeginnerMissions.BranchMerge && migrated.SavedCommitId == "abc123", "schema 1 walkthrough with a saved version migrates to schema 2 at the branch mission");
+        check(migrated.SchemaVersion == BeginnerGuideState.CurrentSchemaVersion && migrated.MissionIndex == BeginnerMissions.BranchMerge && migrated.SavedCommitId == "abc123" && migrated.WelcomeSeen, "schema 1 walkthrough with a saved version migrates to the current schema at the branch mission, welcome already seen");
+        check(!(await new AppStateStore(Path.Combine(stateRoot, "fresh-" + Guid.NewGuid().ToString("N"))).LoadBeginnerGuideAsync()).WelcomeSeen, "a brand-new install has not seen the welcome screen");
+        await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":2,\"MissionIndex\":2}");
+        check((await new AppStateStore(stateRoot).LoadBeginnerGuideAsync()) is { SchemaVersion: 3, WelcomeSeen: true, Experience: "", MissionIndex: 2 }, "schema 2 record migrates to schema 3 without showing the welcome to an existing user");
+        await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":3,\"Experience\":\"Expert\"}");
+        try { await new AppStateStore(stateRoot).LoadBeginnerGuideAsync(); check(false, "unknown experience value is rejected"); } catch (AppStateException) { check(true, "unknown experience value is rejected and the record preserved"); }
+        var welcomeStore = new AppStateStore(Path.Combine(stateRoot, "welcome-" + Guid.NewGuid().ToString("N")));
+        await welcomeStore.SaveBeginnerGuideAsync(new BeginnerGuideState { WelcomeSeen = true, Experience = "Some" });
+        check((await welcomeStore.LoadBeginnerGuideAsync()) is { WelcomeSeen: true, Experience: "Some" }, "welcome answer and experience survive save and reload");
         await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":1,\"Intent\":\"\"}");
         check((await new AppStateStore(stateRoot).LoadBeginnerGuideAsync()).MissionIndex == BeginnerMissions.SeeChange, "schema 1 walkthrough without a save migrates to the first mission");
         var store = new AppStateStore(stateRoot);

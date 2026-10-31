@@ -12,6 +12,7 @@ public sealed class WhatsThisDialog : Window
 {
     public const string Heading = "What do these words mean?";
     public string? LessonToOpen { get; private set; }
+    public bool ReplayRequested { get; private set; }
 
     public WhatsThisDialog(Window owner, IReadOnlyList<GlossaryTerm> terms, Func<string, string?> lessonTitle)
     {
@@ -37,6 +38,9 @@ public sealed class WhatsThisDialog : Window
             row.Children.Add(DocLinks.Chip(term.DocUrl));
             entry.Children.Add(row); body.Children.Add(entry);
         }
+        var replay = new Button { Content = "Replay walkthrough", Padding = new Thickness(16, 8, 16, 8), Margin = new Thickness(0, 20, 0, 0), MinHeight = 36, HorizontalAlignment = HorizontalAlignment.Left };
+        AutomationProperties.SetHelpText(replay, "Start the step-by-step walkthrough again from the beginning.");
+        replay.Click += (_, _) => { ReplayRequested = true; DialogResult = true; }; body.Children.Add(replay);
         var close = new Button { Content = "Close", IsCancel = true, IsDefault = true, Padding = new Thickness(16, 8, 16, 8), Margin = new Thickness(0, 20, 0, 0), MinHeight = 36, HorizontalAlignment = HorizontalAlignment.Left };
         close.Click += (_, _) => Close(); body.Children.Add(close);
         Content = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };

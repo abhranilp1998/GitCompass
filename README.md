@@ -10,19 +10,20 @@
 
 Get the latest version from the **[Releases page](https://github.com/abhranilp1998/GitCompass/releases)**.
 
-> **Latest release: 0.2.8.** On the [Releases page](https://github.com/abhranilp1998/GitCompass/releases/latest):
+> **Latest release: 0.2.9.** On the [Releases page](https://github.com/abhranilp1998/GitCompass/releases/latest):
 >
-> - **Recommended: `GitCompass-Setup-0.2.8.exe`.** Double-click it and follow Next, Next, Finish. No administrator rights needed. It adds GitCompass to your Start menu and can be removed from Windows Settings > Apps.
-> - **Portable option: `GitCompass-0.2.8-win-x64.zip`.** Unzip the whole ZIP anywhere and run `GitCompass.exe`. Nothing is installed.
+> - **Recommended: `GitCompass-Setup-0.2.9.exe`.** Double-click it and follow Next, Next, Finish. No administrator rights needed. It adds GitCompass to your Start menu and can be removed from Windows Settings > Apps.
+> - **Portable option: `GitCompass-0.2.9-win-x64.zip`.** Unzip the whole ZIP anywhere and run `GitCompass.exe`. Nothing is installed.
 > To build from source instead, see [docs/DEVELOPING.md](docs/DEVELOPING.md).
 >
 > The current build is an early test version. It is not digitally signed yet, so Windows may show a blue "Windows protected your PC" box the first time you open it. Choose **More info**, then **Run anyway**.
 
-## Quick start (3 steps)
+## Quick start (4 steps)
 
-1. **Download and install.** Run `GitCompass-Setup-0.2.8.exe` and open GitCompass from the Start menu. (Using the ZIP instead? Unzip the **whole** file, then open `GitCompass.exe` from inside that folder.)
-2. **Try the Learn page.** It explains the basics in plain language.
-3. **Open a project.** Choose a folder. GitCompass opens it in **Read-only** mode first, so nothing in your files changes until you choose to allow it.
+1. **Download and install.** Run `GitCompass-Setup-0.2.9.exe` and open GitCompass from the Start menu. (Using the ZIP instead? Unzip the **whole** file, then open `GitCompass.exe` from inside that folder.)
+2. **Answer one question.** The first time you open GitCompass, a welcome screen asks how much you know: *I'm brand new* (full walkthrough with practice missions), *I know a little* (just the key steps) or *I know Git* (a quick quiz, then skip ahead). Changed your mind? Use **Replay walkthrough** or **Show welcome screen again** in Settings or Learn, or press F1.
+3. **Try the Learn page.** It explains the basics in plain language.
+4. **Open a project.** Choose a folder. GitCompass opens it in **Read-only** mode first, so nothing in your files changes until you choose to allow it.
 
 Want to practise first? Use a practice project (source builds can create one with `scripts/create-practice.ps1`). It is a small throwaway folder with one saved version, one changed file and one new file, and it isn't connected to anything online.
 

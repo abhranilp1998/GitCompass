@@ -15,7 +15,8 @@ Non-goals: teaching rebase, conflicts in depth, or the terminal.
 |---|---|
 | First launch (`BeginnerGuideState.WelcomeDismissed == false`) | Show the Welcome screen (W0). |
 | Paused guide (`Active == true`) | Welcome shows "Continue your walkthrough" (existing `ResumeBeginnerAsync`). |
-| Settings / Learn → "Start walkthrough again" | Calls `StartBeginnerAsync()`; creates a *new* practice folder (never reuses or overwrites one). |
+| Settings / Learn / F1 help → "Replay walkthrough" | `ReplayWalkthroughAsync()`: resets mission progress and restarts from step 1. Files and saved versions are untouched. |
+| Settings / Learn → "Show welcome screen again" | Re-opens `WelcomeDialog` and re-routes by the new answer. |
 
 ## 3. Screen-by-screen
 
@@ -167,3 +168,16 @@ Optional pool: also ask about "merge" and "what `.gitignore` does", and pick 3 o
 12. A merge failure in M4 doesn't corrupt the practice repo. The abort path returns it to the state before the merge.
 13. Keyboard-only and screen-reader use works for W0, the mission bar and Q0 (tab order, `AutomationProperties.Name` set).
 14. The layout works down to the app's existing minimum of 640 × 560.
+
+## Welcome screen (0.2.9)
+
+Shown once on first launch, before any walkthrough (`ShowWelcomeIfFirstLaunchAsync`, called from `App.OnStartup` only; not shown with `--smoke`, `--capture` or `--page`).
+
+- **Copy** (`Domain/Welcome.cs`): three plain lines (version history, plain words and asks first, GitHub optional), then "How much do you know about Git?"
+- **Picker routing** (`Welcome.Route`):
+  - *I'm brand new* → `Experience = "New"` → full walkthrough; guided practice project with missions is the primary action.
+  - *I know a little* → `Experience = "Some"` → short walkthrough: completed steps hidden, long explanations trimmed, "Show the full walkthrough" toggle.
+  - *I know Git* → `Experience = "Git"` → existing `SkipQuizDialog` flow. Failing the quiz still offers the walkthrough.
+  - *Not now* / Esc → marks seen, no route.
+- **State**: `beginner-guide.json` schema 3 adds `WelcomeSeen` and `Experience`. Migration 1→2→3; existing records (schema ≤ 2) get `WelcomeSeen = true` so upgraders aren't interrupted. Unknown `Experience` values are rejected and the file preserved.
+- **Accessibility**: theme brushes only (contrast-checked), heading levels for screen readers, each choice has a full spoken name, first choice focused, Tab/arrows cycle, Enter picks, Esc closes.

@@ -27,6 +27,7 @@ public partial class App : System.Windows.Application
         var project = Argument(e.Args, "--project");
         if (project is not null) await window.OpenProjectAsync(project);
         window.ConfigureView(Argument(e.Args, "--page"), Argument(e.Args, "--theme"));
+        if (!smoke && !e.Args.Contains("--capture") && Argument(e.Args, "--page") is null) await window.ShowWelcomeIfFirstLaunchAsync();
         if (e.Args.Contains("--capture") || e.Args.Contains("--smoke"))
         {
             var path = capture;

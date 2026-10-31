@@ -122,6 +122,41 @@ public partial class ShellWindow
         }
     }
 
+    /// <summary>Called by the app at startup (not by tests): shows the welcome screen once, before any walkthrough.</summary>
+    public async Task ShowWelcomeIfFirstLaunchAsync()
+    {
+        if (!beginnerStateReadable || beginner.WelcomeSeen) return;
+        await ShowWelcomeAsync();
+    }
+
+    private async Task ShowWelcomeAsync()
+    {
+        var dialog = new WelcomeDialog(this);
+        dialog.ShowDialog();
+        beginner = beginner with { WelcomeSeen = true };
+        if (dialog.Choice is not { } level) { await SaveBeginnerAsync(); return; }
+        await ApplyWelcomeChoiceAsync(level);
+    }
+
+    /// <summary>Picker routing: brand new → full walkthrough with missions; a little → key steps only; knows Git → the skip quiz.</summary>
+    public async Task ApplyWelcomeChoiceAsync(ExperienceLevel level)
+    {
+        beginner = beginner with { WelcomeSeen = true, Experience = Welcome.ToState(level) };
+        switch (Welcome.Route(level))
+        {
+            case WelcomeRoute.SkipQuiz: await SaveBeginnerAsync(); await SkipWithQuizAsync(); break;
+            default: await StartBeginnerAsync(); break;
+        }
+    }
+
+    public BeginnerGuideState BeginnerState => beginner;
+
+    private async Task ReplayWalkthroughAsync()
+    {
+        beginner = beginner with { MissionIndex = beginner.GuidedPractice ? BeginnerMissions.SeeChange : beginner.MissionIndex, SavedCommitId = null, PushOffered = false };
+        await StartBeginnerAsync();
+    }
+
     private async Task PauseBeginnerAsync()
     {
         beginner = beginner with { Active = false, WelcomeDismissed = true };
@@ -179,6 +214,12 @@ public partial class ShellWindow
     {
         target.Children.Add(SettingsRow("First version walkthrough", beginner.Active && IsGuideProject ? "Continue your next step using this project's actual status." : "New to Git? Get help choosing files and saving a version on this computer.",
             Action(beginner.Active && IsGuideProject ? "Continue walkthrough" : "Guide me through a local save", StartBeginnerAsync)));
+    }
+
+    private void BuildReplayEntries(Panel target)
+    {
+        target.Children.Add(SettingsRow("Replay walkthrough", "Start the walkthrough again from the first step. Your files and saved versions are not changed.", Action("Replay walkthrough", ReplayWalkthroughAsync)));
+        target.Children.Add(SettingsRow("Show welcome screen again", "Pick your experience level again: brand new, a little, or I know Git.", Action("Show welcome screen again", ShowWelcomeAsync)));
     }
 
     private async Task SetCandidateIntentAsync(string intent)
@@ -288,8 +329,10 @@ public partial class ShellWindow
         {
             var choose = new StackPanel(); Subheading(choose, "1. Choose a project");
             Text(choose, "Select any folder with your project files, whether it uses Git or not. Or practice with an example in a new folder.", true);
-            choose.Children.Add(Action("Select project folder", () => PickFolder(this, new RoutedEventArgs()), true));
-            choose.Children.Add(Action("Create guided practice project", CreateGuidedPracticeProjectAsync));
+            var brandNew = beginner.Experience == "New";
+            if (brandNew) Text(choose, "New to Git? The guided practice project has short missions that teach each step safely.", true);
+            choose.Children.Add(Action("Select project folder", () => PickFolder(this, new RoutedEventArgs()), !brandNew));
+            choose.Children.Add(Action("Create guided practice project", CreateGuidedPracticeProjectAsync, brandNew));
             choose.Children.Add(Action("Practice with a sample project", CreatePracticeProjectAsync));
             AddCard(PageContent, choose);
             if (setupError is not null) { AddCard(PageContent, setupError); PageContent.Children.Add(Action("Open setup settings", () => Navigate("Settings"))); }
@@ -297,6 +340,13 @@ public partial class ShellWindow
         }
         if (IsPracticeProject) { BuildMissions(); return; }
         var snapshot = model.Snapshot;
+        var shortMode = Welcome.ShowsShortWalkthrough(beginner.Experience);
+        if (shortMode)
+        {
+            var note = new StackPanel(); Text(note, "Short walkthrough: just the key steps. Finished steps are hidden.", true);
+            note.Children.Add(Action("Show the full walkthrough", async () => { beginner = beginner with { Experience = "New" }; await SaveBeginnerAsync(); Navigate("Walkthrough"); }));
+            AddCard(PageContent, note);
+        }
         var nextActionIndex = PageContent.Children.Count;
         // This is a historical record of a successful reviewed save, independent of
         // whichever branch comparison or page of history happens to be displayed.
@@ -325,7 +375,7 @@ public partial class ShellWindow
 
         var files = new StackPanel(); Subheading(files, "5. Choose what goes into your version");
         Text(files, snapshot.Files.Length == 0 ? "There are no changed files yet. Make a small edit, save it in your editor, then refresh local status." : $"Git sees {snapshot.Files.Length} changed files. Open Changed files, inspect each file, choose its contents, then review your selection.", true);
-        Text(files, "Staging means selecting contents for the next version. Saving includes all staged contents, including anything selected earlier. Review ignore suggestions for generated files and private information.", true);
+        if (!shortMode) Text(files, "Staging means selecting contents for the next version. Saving includes all staged contents, including anything selected earlier. Review ignore suggestions for generated files and private information.", true);
         var stagedCount = snapshot.Files.Count(file => file.IsStaged);
         Text(files, $"Currently selected: {stagedCount} paths. Other edits stay in your working folder.", true);
         files.Children.Add(Action("Open Changed files", () => Navigate("Changes"), snapshot.HasAuthorIdentity));
@@ -351,6 +401,7 @@ public partial class ShellWindow
 
     private void AddGuideSection(Panel content, string title, bool complete)
     {
+        if (complete && Welcome.ShowsShortWalkthrough(beginner.Experience)) return;
         var section = new Expander { Header = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap }, Content = content, IsExpanded = !complete };
         System.Windows.Automation.AutomationProperties.SetName(section, title);
         AddCard(PageContent, section);

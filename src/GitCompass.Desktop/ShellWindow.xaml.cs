@@ -913,6 +913,7 @@ public partial class ShellWindow : Window
     {
         Heading("Learn", "Start with what Git remembers, then try saving one version. These explanations work offline.");
         BuildGuideEntry(PageContent);
+        BuildReplayEntries(PageContent);
         if (learning is null) { AddCard(PageContent, setupError ?? "The local learning content is missing."); return; }
         var lessonPanel = new StackPanel(); PageContent.Children.Add(lessonPanel);
         var finder = new StackPanel();
@@ -949,6 +950,8 @@ public partial class ShellWindow : Window
     {
         Heading("Settings", "GitCompass " + (typeof(ShellWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1.0") + " • Local preferences, appearance, connections, and opt-in team checks.");
         if (setupError is not null) AddCard(PageContent, setupError);
+        Subheading(PageContent, "Walkthrough and welcome");
+        BuildReplayEntries(PageContent);
         if (workspace is null)
         {
             var prerequisite = new StackPanel();
@@ -1306,9 +1309,12 @@ public partial class ShellWindow : Window
     {
         var dialog = new WhatsThisDialog(this, terms.Take(6).ToList(), id => learning?.Find(id)?.Title);
         var returnFocus = System.Windows.Input.Keyboard.FocusedElement;
-        if (dialog.ShowDialog() == true && dialog.LessonToOpen is { } lesson) ShowLesson(lesson);
+        var result = dialog.ShowDialog();
+        if (result == true && dialog.ReplayRequested) { _ = ReplayWalkthroughSafeAsync(); return; }
+        if (result == true && dialog.LessonToOpen is { } lesson) ShowLesson(lesson);
         else returnFocus?.Focus();
     }
+    private async Task ReplayWalkthroughSafeAsync() { try { await ReplayWalkthroughAsync(); } catch (Exception e) { ShowProblem("Replay walkthrough", e.Message); } }
     private Button DocChip(string url) => DocLinks.Chip(url, problem => Banner(problem));
     private static void Subheading(Panel panel, string title) => Text(panel, title, false, 18, FontWeights.SemiBold);
     private static void Text(Panel panel, string value, bool muted = false, double size = 14, FontWeight? weight = null)

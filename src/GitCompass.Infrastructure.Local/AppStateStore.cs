@@ -19,7 +19,7 @@ public sealed record RecentProject(string Folder, string DisplayName, DateTimeOf
 public sealed record ProjectListRecord(int SchemaVersion, RecentProject[] Projects);
 public sealed record BeginnerGuideState
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
     public bool WelcomeDismissed { get; init; }
     public bool Active { get; init; }
@@ -33,11 +33,19 @@ public sealed record BeginnerGuideState
     public bool PushOffered { get; init; }
     /// <summary>True only for a practice repository created by the explicitly reviewed guided action.</summary>
     public bool GuidedPractice { get; init; }
+    /// <summary>True once the first-launch welcome screen has been answered or closed. Added in schema 3.</summary>
+    public bool WelcomeSeen { get; init; }
+    /// <summary>Experience picked on the welcome screen: "", "New", "Some" or "Git". Added in schema 3.</summary>
+    public string Experience { get; init; } = "";
 
-    /// <summary>Upgrades a schema 1 record. A recorded first save means the stage and commit missions are complete.</summary>
-    public static BeginnerGuideState Migrate(BeginnerGuideState guide) => guide.SchemaVersion == 1
-        ? guide with { SchemaVersion = CurrentSchemaVersion, MissionIndex = guide.SavedCommitId is null ? 0 : 3 }
-        : guide;
+    /// <summary>Upgrades older records step by step. Schema 1→2: a recorded first save means the stage and commit missions are complete.
+    /// Schema 2→3: someone with an existing record has already used GitCompass, so the first-launch welcome is not shown again.</summary>
+    public static BeginnerGuideState Migrate(BeginnerGuideState guide)
+    {
+        if (guide.SchemaVersion == 1) guide = guide with { SchemaVersion = 2, MissionIndex = guide.SavedCommitId is null ? 0 : 3 };
+        if (guide.SchemaVersion == 2) guide = guide with { SchemaVersion = 3, WelcomeSeen = true, Experience = guide.Experience ?? "" };
+        return guide;
+    }
 }
 public sealed class AppStateException(string message, string preservedPath) : Exception(message)
 {
@@ -84,7 +92,7 @@ public sealed class AppStateStore
         if (!ValidGuide(guide)) throw new ArgumentException("Unsupported walkthrough schema or project intent.");
         return WriteAsync("beginner-guide.json", guide, cancellationToken);
     }
-    private static bool ValidGuide(BeginnerGuideState guide) => guide.SchemaVersion == BeginnerGuideState.CurrentSchemaVersion && guide.MissionIndex is >= 0 and <= 5 && (guide.Intent is "" or "OwnFiles" or "TeamCopy") &&
+    private static bool ValidGuide(BeginnerGuideState guide) => guide.SchemaVersion == BeginnerGuideState.CurrentSchemaVersion && guide.MissionIndex is >= 0 and <= 5 && (guide.Intent is "" or "OwnFiles" or "TeamCopy") && (guide.Experience is "" or "New" or "Some" or "Git") &&
         ValidGuidePath(guide.ProjectFolder) && ValidGuidePath(guide.TeamCopyFolder) && ValidGuidePath(guide.PracticeFolder);
     private static bool ValidGuidePath(string? path)
     {
