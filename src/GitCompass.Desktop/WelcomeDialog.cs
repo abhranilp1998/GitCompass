@@ -43,6 +43,7 @@ public sealed class WelcomeDialog : Window
         body.Children.Add(Text("You can see this screen again from Settings or Learn.", 12, FontWeights.Normal, "MutedBrush"));
         var later = new Button { Content = "Not now", IsCancel = true, Padding = new Thickness(16, 6, 16, 6), Margin = new Thickness(0, 12, 0, 0), MinHeight = 32, HorizontalAlignment = HorizontalAlignment.Left };
         later.Click += (_, _) => Close(); body.Children.Add(later);
+        body.Children.Add(Text(Welcome.KeyboardHint, 12, FontWeights.Normal, "MutedBrush"));
         KeyboardNavigation.SetDirectionalNavigation(body, KeyboardNavigationMode.Cycle);
         Content = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         Loaded += (_, _) => first?.Focus();

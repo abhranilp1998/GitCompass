@@ -25,6 +25,8 @@ public sealed class SkipQuizDialog : Window
         FontFamily = owner.FontFamily;
         var greeting = SkipQuiz.PickGreeting(random ?? Random.Shared);
         Title = greeting.Title;
+        var hint = new TextBlock { Text = SkipQuiz.KeyboardHint, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0) };
+        hint.SetResourceReference(TextBlock.ForegroundProperty, "MutedBrush"); body.Children.Add(hint);
         Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = body };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { Outcome = SkipQuizOutcome.Cancelled; Close(); } };
         BuildQuestions(greeting);

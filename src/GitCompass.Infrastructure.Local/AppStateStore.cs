@@ -39,6 +39,11 @@ public sealed record BeginnerGuideState
     public string Experience { get; init; } = "";
     /// <summary>True once the user chose "Let GitCompass make changes here" in the GitCompass-created guided practice folder. Optional field (schema 3, default false).</summary>
     public bool PracticeChangesAllowed { get; init; }
+    /// <summary>Random token also written inside the practice repository (.git/gitcompass-practice). Auto-trust needs both to match. Optional (0.3.1).</summary>
+    public string? PracticeToken { get; init; }
+    /// <summary>Mission 4 sub-step (0–3) and the branch the practice project started on. Optional (0.3.1).</summary>
+    public int BranchStep { get; init; }
+    public string? PracticeBaseBranch { get; init; }
 
     /// <summary>Upgrades older records step by step. Schema 1→2: a recorded first save means the stage and commit missions are complete.
     /// Schema 2→3: someone with an existing record has already used GitCompass, so the first-launch welcome is not shown again.</summary>
@@ -94,7 +99,7 @@ public sealed class AppStateStore
         if (!ValidGuide(guide)) throw new ArgumentException("Unsupported walkthrough schema or project intent.");
         return WriteAsync("beginner-guide.json", guide, cancellationToken);
     }
-    private static bool ValidGuide(BeginnerGuideState guide) => guide.SchemaVersion == BeginnerGuideState.CurrentSchemaVersion && guide.MissionIndex is >= 0 and <= 5 && (guide.Intent is "" or "OwnFiles" or "TeamCopy") && (guide.Experience is "" or "New" or "Some" or "Git") &&
+    private static bool ValidGuide(BeginnerGuideState guide) => guide.SchemaVersion == BeginnerGuideState.CurrentSchemaVersion && guide.MissionIndex is >= 0 and <= 5 && guide.BranchStep is >= 0 and <= 3 && (guide.Intent is "" or "OwnFiles" or "TeamCopy") && (guide.Experience is "" or "New" or "Some" or "Git") &&
         ValidGuidePath(guide.ProjectFolder) && ValidGuidePath(guide.TeamCopyFolder) && ValidGuidePath(guide.PracticeFolder);
     private static bool ValidGuidePath(string? path)
     {

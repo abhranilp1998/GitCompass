@@ -147,7 +147,7 @@
       "WhenToPause": "Pause when you do not recognize the project, the selected files, or the upload destination. The walkthrough explains each change before asking you to review it.",
       "Example": "Edit and save a file → Choose files for the version → Describe the change → Review and save locally → Share online when ready",
       "Outcome": "You can explain the difference between a changed file, a version saved on this computer, and a version uploaded for others.",
-      "Practice": "Start the walkthrough and choose Practice with a sample project. Make one small change and save one local version. No account or upload is required."
+      "Practice": "Start the walkthrough and choose \"Start the practice project\". Make one small change and save one local version. No account or upload is required."
     },
     {
       "Id": "journey",

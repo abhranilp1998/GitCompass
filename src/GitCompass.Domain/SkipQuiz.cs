@@ -6,12 +6,13 @@ public sealed record QuizGreeting(string Title, string Subtitle);
 /// <summary>Light-hearted Git check shown when a beginner skips the walkthrough. Never blocks; a score is not stored.</summary>
 public static class SkipQuiz
 {
+    public const string KeyboardHint = "Keyboard: Tab to move · Space or Enter to pick · Esc to go back";
     public static readonly QuizGreeting[] Greetings =
     [
         new("Do you really know Git?", "Three quick questions. No pressure. (Some pressure.)"),
         new("Whoa there, Git wizard", "Prove it and the door is yours."),
         new("Skipping already? Bold.", "Answer three and we'll get out of your way."),
-        new("git gud check", "If you can answer these, you don't need us."),
+        new("Quick Git check", "If you can answer these, you don't need us."),
         new("Trust, but verify", "Three questions between you and your project."),
         new("Is this your first rodeo?", "Let's find out in about 20 seconds."),
     ];

@@ -10,18 +10,18 @@
 
 Get the latest version from the **[Releases page](https://github.com/abhranilp1998/GitCompass/releases)**.
 
-> **Latest release: 0.3.0.** On the [Releases page](https://github.com/abhranilp1998/GitCompass/releases/latest):
+> **Latest release: 0.3.1.** On the [Releases page](https://github.com/abhranilp1998/GitCompass/releases/latest):
 >
-> - **Recommended: `GitCompass-Setup-0.3.0.exe`.** Double-click it and follow Next, Next, Finish. No administrator rights needed. It adds GitCompass to your Start menu and can be removed from Windows Settings > Apps.
-> - **Portable option: `GitCompass-0.3.0-win-x64.zip`.** Unzip the whole ZIP anywhere and run `GitCompass.exe`. Nothing is installed.
+> - **Recommended: `GitCompass-Setup-0.3.1.exe`.** Double-click it and follow Next, Next, Finish. No administrator rights needed. It adds GitCompass to your Start menu and can be removed from Windows Settings > Apps.
+> - **Portable option: `GitCompass-0.3.1-win-x64.zip`.** Unzip the whole ZIP anywhere and run `GitCompass.exe`. Nothing is installed.
 > To build from source instead, see [docs/DEVELOPING.md](docs/DEVELOPING.md).
 >
 > The current build is an early test version. It is not digitally signed yet, so Windows may show a blue "Windows protected your PC" box the first time you open it. Choose **More info**, then **Run anyway**.
 
-## Quick start (4 steps)
+## Quick start (5 steps)
 
-0. **Install Git for Windows first.** It's free and takes about 2 minutes: [download Git](https://git-scm.com/download/win), run it and keep clicking Next. (If you forget, GitCompass shows you this step.)
-1. **Download and install.** Run `GitCompass-Setup-0.3.0.exe` and open GitCompass from the Start menu. (Using the ZIP instead? Unzip the **whole** file, then open `GitCompass.exe` from inside that folder.)
+0. **Install Git for Windows first.** It's free and takes about 2 minutes: [download Git](https://git-scm.com/downloads/win), run it and keep clicking Next. (If you forget, GitCompass shows you this step.)
+1. **Download and install.** Run `GitCompass-Setup-0.3.1.exe` and open GitCompass from the Start menu. (Using the ZIP instead? Unzip the **whole** file, then open `GitCompass.exe` from inside that folder.)
 2. **Answer one question.** The first time you open GitCompass, a welcome screen asks how much you know: *I'm brand new* (full walkthrough with practice missions), *I know a little* (just the key steps) or *I know Git* (a quick quiz, then skip ahead). Changed your mind? Use **Replay walkthrough** or **Show welcome screen again** in Settings or Learn, or press F1.
 3. **Try the Learn page.** It explains the basics in plain language.
 4. **Open a project.** Choose a folder. GitCompass opens it in **Read-only** mode first, so nothing in your files changes until you choose to allow it. When you're ready to save, choose **Allow changes** in the **Project access** box at the top. In the guided practice project, just press **Let GitCompass make changes here**.

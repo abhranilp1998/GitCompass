@@ -7,6 +7,7 @@ public sealed record ExperienceOption(ExperienceLevel Level, string Label, strin
 /// <summary>First-launch welcome: what GitCompass does in plain words, and an experience picker that decides the walkthrough length.</summary>
 public static class Welcome
 {
+    public const string KeyboardHint = "Keyboard: Tab or arrows to move · Enter to choose · Esc for not now";
     public const string Title = "Welcome to GitCompass";
     public static readonly string[] Lines =
     [
@@ -38,10 +39,11 @@ public static class Welcome
 /// <summary>Shown before the welcome picker when git.exe can't be found.</summary>
 public static class GitSetupStep
 {
+    public const string KeyboardHint = "Keyboard: Tab to move · Enter to press · Esc for not now";
     public const string Title = "First, install Git (free, ~2 min)";
     public const string Body = "GitCompass uses a free tool called Git to remember versions of your files. Download it, run the installer and keep clicking Next (the default choices are fine), then come back here.";
     public const string DownloadLabel = "Download Git";
-    public const string DownloadUrl = "https://git-scm.com/download/win";
+    public const string DownloadUrl = "https://git-scm.com/downloads/win";
     public const string CheckAgainLabel = "I've installed it, check again";
     public const string StillMissing = "Still can't find Git. If the installer finished, close and reopen GitCompass, or set git.exe's location in Settings > Advanced.";
     public const string LaterLabel = "Not now";

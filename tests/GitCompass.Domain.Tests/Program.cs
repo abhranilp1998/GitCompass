@@ -63,7 +63,21 @@ using (var lease = access.Acquire(linkedId, OperationKind.Terminal)) Denied(() =
 Check(Welcome.Options.Length == 3 && Welcome.Lines.Length is >= 2 and <= 3, "Welcome screen has 2-3 plain lines and three experience choices");
 Check(Welcome.Route(ExperienceLevel.BrandNew) == WelcomeRoute.FullWalkthrough && Welcome.Route(ExperienceLevel.KnowALittle) == WelcomeRoute.ShortWalkthrough && Welcome.Route(ExperienceLevel.KnowGit) == WelcomeRoute.SkipQuiz, "Experience picker routes brand new → full, a little → short, I know Git → skip quiz");
 Check(Welcome.Options.All(o => Welcome.IsValidState(Welcome.ToState(o.Level))) && Welcome.ShowsShortWalkthrough(Welcome.ToState(ExperienceLevel.KnowALittle)) && !Welcome.ShowsShortWalkthrough("New") && !Welcome.IsValidState("Expert"), "Stored experience values are valid and only 'a little' shortens the walkthrough");
-Check(GitSetupStep.Title.Contains("install Git") && GitSetupStep.DownloadUrl == "https://git-scm.com/download/win" && GitSetupStep.CheckAgainLabel == "I've installed it, check again", "Missing-Git step is one plain install step with download and check-again");
+Check(GitSetupStep.Title.Contains("install Git") && GitSetupStep.DownloadUrl == "https://git-scm.com/downloads/win" && GitSetupStep.CheckAgainLabel == "I've installed it, check again", "Missing-Git step is one plain install step with download and check-again");
+var bsteps = BeginnerMissions.BranchSteps("main");
+Check(bsteps.Length == BeginnerMissions.BranchStepCount && bsteps[2].Contains("main") && bsteps[0].Contains(BeginnerMissions.PracticeBranch) && BeginnerMissions.BranchSteps("trunk")[3].Contains("trunk"), "Mission 4 has four sub-steps that name the real base branch");
+Check(BeginnerMissions.AdvanceBranchStep(0, OperationKind.CreateBranch, "main", "main") == 1
+    && BeginnerMissions.AdvanceBranchStep(1, OperationKind.Commit, "main", "main") == 1
+    && BeginnerMissions.AdvanceBranchStep(1, OperationKind.Commit, BeginnerMissions.PracticeBranch, "main") == 2
+    && BeginnerMissions.AdvanceBranchStep(2, OperationKind.SwitchBranch, BeginnerMissions.PracticeBranch, "main") == 2
+    && BeginnerMissions.AdvanceBranchStep(2, OperationKind.SwitchBranch, "main", "main") == 3
+    && BeginnerMissions.AdvanceBranchStep(3, OperationKind.Merge, "main", "main") == 3
+    && BeginnerMissions.AdvanceBranchStep(9, OperationKind.Push, "main", "main") == 3, "Mission 4 sub-steps advance only on the matching operation and branch");
+Check(BeginnerMissions.PracticeMarkerMatches("0123456789abcdef0123", "0123456789abcdef0123\n") && !BeginnerMissions.PracticeMarkerMatches("0123456789abcdef0123", null)
+    && !BeginnerMissions.PracticeMarkerMatches(null, null) && !BeginnerMissions.PracticeMarkerMatches("short", "short") && !BeginnerMissions.PracticeMarkerMatches("0123456789abcdef0123", "other-token-000000000"), "Saved practice permission requires a matching marker token");
+Check(SkipQuiz.Greetings.All(g => !g.ToString().Contains("gud")), "Quiz greetings avoid slang");
+Check(Welcome.KeyboardHint.Contains("Esc") && GitSetupStep.KeyboardHint.Contains("Esc") && SkipQuiz.KeyboardHint.Contains("Esc"), "Dialogs show keyboard hints");
+Check(GitErrorExplainer.OfflineTitle == "Can't reach the online copy", "Offline title is stable for its recovery buttons");
 Check(SkipQuiz.Questions.Length == 3 && SkipQuiz.Greetings.Length >= 5, "Skip quiz has three questions and several playful greetings");
 Check(SkipQuiz.Missed(SkipQuiz.Questions.Select(q => (int?)q.Correct).ToArray()).Length == 0, "All correct answers pass the skip quiz");
 Check(SkipQuiz.Missed([null, null, null]).Length == 3 && SkipQuiz.Missed([]).Length == 3, "Unanswered questions count as missed");

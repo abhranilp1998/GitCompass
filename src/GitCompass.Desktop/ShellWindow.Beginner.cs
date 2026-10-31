@@ -55,6 +55,11 @@ public partial class ShellWindow
         if (!beginner.Active || !IsGuideProject || model.Snapshot is null || state != OperationState.Succeeded) return;
         if (IsPracticeProject)
         {
+            if (BeginnerMissions.Clamp(beginner.MissionIndex) == BeginnerMissions.BranchMerge)
+            {
+                var step = BeginnerMissions.AdvanceBranchStep(beginner.BranchStep, kind, model.Snapshot.Branch, PracticeBase);
+                if (step != beginner.BranchStep) { beginner = beginner with { BranchStep = step }; await SaveBeginnerAsync(); Banner("✓ Step done: " + BeginnerMissions.BranchSteps(PracticeBase)[step - 1] + ". Next: " + BeginnerMissions.BranchSteps(PracticeBase)[step] + "."); }
+            }
             var next = BeginnerMissions.Advance(beginner.MissionIndex, kind, state);
             if (next != beginner.MissionIndex)
             {
@@ -109,6 +114,10 @@ public partial class ShellWindow
         dialog.ShowDialog();
         switch (dialog.Outcome)
         {
+            case SkipQuizOutcome.Cancelled:
+                Navigate("Overview");
+                Banner(QuizCancelledBanner);
+                break;
             case SkipQuizOutcome.StartWalkthrough: await StartBeginnerAsync(); break;
             case SkipQuizOutcome.OpenProject:
                 beginner = beginner with { Active = false, WelcomeDismissed = true };
@@ -139,7 +148,7 @@ public partial class ShellWindow
         {
             var dialog = new GitSetupDialog(this, stillMissing);
             if (dialog.ShowDialog() != true || !dialog.CheckAgain) return false;
-            setupError = null; await InitializeAsync();
+            await RecheckGitAsync();
             stillMissing = true;
         }
         return true;
@@ -204,7 +213,7 @@ public partial class ShellWindow
         Text(guide, "Choose a folder, understand its history, select your changes, and save a version on this computer. You can pause and return at any time.", true);
         guide.Children.Add(Action(beginner.Active || beginner.ProjectFolder is not null ? "Resume walkthrough" : "Start the walkthrough", beginner.ProjectFolder is null ? StartBeginnerAsync : ResumeBeginnerAsync, !beginner.WelcomeDismissed));
         guide.Children.Add(Action("Create guided practice project", CreateGuidedPracticeProjectAsync));
-        guide.Children.Add(Action("Practice with a sample project", CreatePracticeProjectAsync));
+        if (beginner.Experience != "New") guide.Children.Add(Action(SampleFolderLabel, CreatePracticeProjectAsync));
         if (!beginner.WelcomeDismissed) guide.Children.Add(Action("Skip — I know Git", SkipWithQuizAsync));
         if (beginner.ProjectFolder is not null) Text(guide, "Walkthrough project: " + beginner.ProjectFolder, true);
         if (beginner.ProjectFolder is not null && !Directory.Exists(beginner.ProjectFolder)) Text(guide, "That folder is no longer available. Choose its new location or another folder to continue.", true);
@@ -332,6 +341,7 @@ public partial class ShellWindow
     private void RestorePracticeAccess()
     {
         if (workspace is null || model.Snapshot is null || !IsPracticeProject || !beginner.PracticeChangesAllowed) return;
+        if (!BeginnerMissions.PracticeMarkerMatches(beginner.PracticeToken, ReadPracticeMarker())) return; // not verifiably ours: ask again
         var id = model.Snapshot.ProjectId;
         if (workspace.Access.Get(id).Level == AccessLevel.AllowChanges) return;
         workspace.SetTrusted(id, true);
@@ -341,12 +351,23 @@ public partial class ShellWindow
     private async Task AllowPracticeChangesAsync()
     {
         if (workspace is null || model.Snapshot is null || !IsPracticeProject) return;
-        beginner = beginner with { PracticeChangesAllowed = true };
+        var token = Guid.NewGuid().ToString("N");
+        try { await File.WriteAllTextAsync(PracticeMarkerPath!, token); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentNullException) { Banner("GitCompass couldn't mark this practice folder, so it will ask again next time. " + error.Message); token = ""; }
+        beginner = beginner with { PracticeChangesAllowed = token.Length > 0, PracticeToken = token.Length > 0 ? token : null };
         await SaveBeginnerAsync();
+        if (token.Length == 0) { workspace.SetTrusted(model.Snapshot.ProjectId, true); workspace.Access.SetLevel(model.Snapshot.ProjectId, AccessLevel.AllowChanges); await RefreshAsync(false); UpdateContext(); RenderPage(); return; }
         RestorePracticeAccess();
         await RefreshAsync(false);
         UpdateContext(); RenderPage();
     }
+
+    public const string SampleFolderLabel = "Empty practice folder (no missions)";
+    public const string QuizCancelledBanner = "No problem. To begin, choose Select project folder below. You can see the welcome screen again from Settings.";
+    public const string OwnProjectAllowLabel = "Allow changes in this folder";
+    private string? PracticeMarkerPath => model.Snapshot is null ? null : Path.Combine(model.Snapshot.Project.CommonGitDirectory, BeginnerMissions.PracticeMarkerFile);
+    private string? ReadPracticeMarker() { try { return PracticeMarkerPath is { } p && File.Exists(p) ? File.ReadAllText(p) : null; } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; } }
+    private string PracticeBase => beginner.PracticeBaseBranch ?? "main";
 
     private void ExplainBeginnerAccess(Panel target)
     {
@@ -359,8 +380,8 @@ public partial class ShellWindow
         }
         else if (grant.Level != AccessLevel.AllowChanges || grant.PendingLevel is not null)
         {
-            Text(target, "GitCompass is only looking at this folder right now. To save versions here, open the \"Project access\" box at the top of the window and choose Allow changes. You can switch back to Read-only any time.", true);
-            target.Children.Add(Action("Show project access control", () => { AccessSelector.Focus(); AccessSelector.IsDropDownOpen = true; }));
+            Text(target, "GitCompass is only looking at this folder right now (Read-only). To save versions here, allow changes. You still confirm each step, and you can switch back any time in the \"Project access\" box at the top.", true);
+            target.Children.Add(Action(OwnProjectAllowLabel, () => { AccessSelector.SelectedIndex = (int)AccessLevel.AllowChanges; }, true));
         }
         else Text(target, "GitCompass can make changes here. You still confirm each step before it runs.", true);
     }
@@ -377,7 +398,7 @@ public partial class ShellWindow
             if (brandNew) Text(choose, "New to Git? The guided practice project has short missions that teach each step safely.", true);
             choose.Children.Add(Action("Select project folder", () => PickFolder(this, new RoutedEventArgs()), !brandNew));
             choose.Children.Add(Action("Create guided practice project", CreateGuidedPracticeProjectAsync, brandNew));
-            choose.Children.Add(Action("Practice with a sample project", CreatePracticeProjectAsync));
+            if (!brandNew) choose.Children.Add(Action(SampleFolderLabel, CreatePracticeProjectAsync));
             AddCard(PageContent, choose);
             if (setupError is not null) { AddCard(PageContent, setupError); PageContent.Children.Add(Action("Open setup settings", () => Navigate("Settings"))); }
             return;
@@ -397,7 +418,10 @@ public partial class ShellWindow
         var recorded = IsGuideProject && beginner.SavedCommitId is not null;
         var selected = new StackPanel(); Subheading(selected, "1. Project selected"); Text(selected, snapshot.Project.DisplayName + "\n" + snapshot.Project.RootPath, true);
         if (!SameFolder(snapshot.Project.SelectedFolder, snapshot.Project.RootPath))
-            Text(selected, "The folder you selected belongs to a larger Git project. Actions apply to the whole project shown above, including files outside the selected subfolder.", true);
+        {
+            Text(selected, "This folder is inside another project that already keeps saved versions. Anything you save here applies to that whole project, including files outside this folder.", true);
+            selected.Children.Add(Action("Pick a different folder", () => PickFolder(this, new RoutedEventArgs())));
+        }
         AddGuideSection(selected, "1. Project selected · " + snapshot.Project.DisplayName, true);
         if (snapshot.Project.Kind == RepositoryKind.Candidate) { BuildCandidateOverview(); return; }
         if (snapshot.Project.Kind is not (RepositoryKind.WorkingTree or RepositoryKind.LinkedWorktree))
@@ -443,9 +467,10 @@ public partial class ShellWindow
         else AddCard(PageContent, save);
     }
 
-    private void AddGuideSection(Panel content, string title, bool complete)
+    private void AddGuideSection(Panel content, string title, bool complete, bool? finished = null)
     {
-        if (complete && Welcome.ShowsShortWalkthrough(beginner.Experience)) return;
+        // Short walkthrough hides only finished steps; upcoming ones stay visible but collapsed.
+        if ((finished ?? complete) && Welcome.ShowsShortWalkthrough(beginner.Experience)) return;
         var section = new Expander { Header = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap }, Content = content, IsExpanded = !complete };
         System.Windows.Automation.AutomationProperties.SetName(section, title);
         AddCard(PageContent, section);
@@ -457,7 +482,7 @@ public partial class ShellWindow
         if (model.Snapshot is null || model.Snapshot.Project.Kind is not (RepositoryKind.WorkingTree or RepositoryKind.LinkedWorktree))
         { AddCard(PageContent, "Set up local history in a project before saving author details."); PageContent.Children.Add(Action("Back to walkthrough", () => Navigate("Walkthrough"))); return; }
         var form = new StackPanel();
-        Text(form, "Use your own name and email, or the details agreed with your team. If you use a private GitHub email, copy the exact address from your GitHub email settings. These values will be stored only for this project.", true);
+        Text(form, "Any name and email are fine, for example \"Asha Rao\" and asha@example.com. They are shown on each version you save, and on GitHub if you upload. Want to keep your email private on GitHub? Use the private address GitHub gives you (Settings > Emails on github.com).", true);
         var name = Input(form, "Your author name", model.Snapshot.AuthorName ?? "");
         var email = Input(form, "Your author email", model.Snapshot.AuthorEmail ?? "");
         ExplainBeginnerAccess(form);
@@ -560,6 +585,37 @@ public partial class ShellWindow
         if (page is null) RenderPage(); else Navigate(page);
     }
 
+    private void BuildBranchSteps(Panel content)
+    {
+        if (beginner.PracticeBaseBranch is null && model.Snapshot?.Branch is { } current && current != BeginnerMissions.PracticeBranch)
+        { beginner = beginner with { PracticeBaseBranch = current }; _ = SaveBeginnerAsync(); }
+        var steps = BeginnerMissions.BranchSteps(PracticeBase);
+        var step = Math.Clamp(beginner.BranchStep, 0, 3);
+        Text(content, $"Your files follow the line of work you're on. Switching back to {PracticeBase} hides ideas.txt until you combine them. Nothing is lost.", true);
+        for (var i = 0; i < steps.Length; i++)
+        {
+            var row = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
+            var label = (i < step ? "✓ " : i == step ? "→ " : "○ ") + $"Step {i + 1} of 4: " + steps[i];
+            var line = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap, FontWeight = i == step ? FontWeights.SemiBold : FontWeights.Normal };
+            line.SetResourceReference(TextBlock.ForegroundProperty, i == step ? "TextBrush" : "MutedBrush");
+            AutomationProperties.SetName(line, (i < step ? "Done. " : i == step ? "Current step. " : "Not started. ") + $"Step {i + 1} of 4: " + steps[i]);
+            row.Children.Add(line);
+            if (i == step)
+            {
+                var (title, page) = i switch
+                {
+                    0 => ($"Open Branches to create {BeginnerMissions.PracticeBranch}", "Branches"),
+                    1 => ("Open Changed files to save ideas.txt", "Changes"),
+                    2 => ($"Open Branches to switch back to {PracticeBase}", "Branches"),
+                    _ => ("Open Saved versions to combine (merge)", "History graph"),
+                };
+                row.Children.Add(Action(title, () => Navigate(page), true));
+                if (i == 1 && model.Snapshot?.Branch != BeginnerMissions.PracticeBranch) Text(row, $"First switch to {BeginnerMissions.PracticeBranch} on the Branches page, then save.", true);
+            }
+            content.Children.Add(row);
+        }
+    }
+
     private void BuildMissions()
     {
         var index = BeginnerMissions.Clamp(beginner.MissionIndex);
@@ -594,25 +650,23 @@ public partial class ShellWindow
                 var actions = Row();
                 switch (i)
                 {
-                    case BeginnerMissions.SeeChange: Text(content, "Tip: in Changed files, select welcome.txt to open its diff.", true); actions.Children.Add(Action("Open Changed files", () => Navigate("Changes"), true)); break;
+                    case BeginnerMissions.SeeChange: Text(content, "Tip: in Changed files, select welcome.txt to see what changed.", true); actions.Children.Add(Action("Open Changed files", () => Navigate("Changes"), true)); break;
                     case BeginnerMissions.Stage: case BeginnerMissions.Commit: actions.Children.Add(Action("Open Changed files", () => Navigate("Changes"), true)); break;
                     case BeginnerMissions.BranchMerge:
-                        Text(content, "Files follow the branch you are on. Switching back to main hides ideas.txt until you merge; nothing is lost.", true);
-                        actions.Children.Add(Action("Open Branches", () => Navigate("Branches"), true));
-                        actions.Children.Add(Action("Open history graph", () => Navigate("History graph")));
+                        BuildBranchSteps(content);
                         actions.Children.Add(Action("Learn about merging", () => ShowLesson("git-merge")));
                         break;
                     case BeginnerMissions.Push:
                         Text(content, "Optional. Your practice files will be visible to anyone who can see the repository you upload to.", true);
-                        BuildGitHubSteps(content);
-                        actions.Children.Add(Action("Paste the web address and upload", BuildProjectSetup));
+                        Text(content, "Uploading takes 3 short steps on the next page: a free GitHub account, an empty repository, and its web address.", true);
+                        actions.Children.Add(Action("Upload to GitHub (3 steps)", BuildProjectSetup));
                         actions.Children.Add(Action("Finish without uploading", () => SetMissionAsync(BeginnerMissions.FinishWithoutPush(index)), true));
                         break;
                 }
                 content.Children.Add(actions);
             }
             else Text(content, i < index ? "Complete. " + mission.Concept : "Coming up.", true);
-            AddGuideSection(content, $"{i + 1}. {mission.Title}" + (i < index ? " · done" : i == index ? " · now" : ""), i != index);
+            AddGuideSection(content, $"{i + 1}. {mission.Title}" + (i < index ? " · done" : i == index ? " · now" : ""), i != index, finished: i < index);
         }
     }
 }

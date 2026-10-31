@@ -61,6 +61,10 @@ internal static class BeginnerWorkflowChecks
         check((await welcomeStore.LoadBeginnerGuideAsync()).PracticeChangesAllowed, "'Let GitCompass make changes here' is remembered for the practice folder across sessions");
         await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":3,\"WelcomeSeen\":true}");
         check(!(await new AppStateStore(stateRoot).LoadBeginnerGuideAsync()).PracticeChangesAllowed, "a 0.2.9 record without the practice permission field loads with it off");
+        await welcomeStore.SaveBeginnerGuideAsync(new BeginnerGuideState { WelcomeSeen = true, GuidedPractice = true, PracticeChangesAllowed = true, PracticeToken = "0123456789abcdef0123", BranchStep = 2, PracticeBaseBranch = "main" });
+        var v031 = await welcomeStore.LoadBeginnerGuideAsync();
+        check(v031.PracticeToken == "0123456789abcdef0123" && v031.BranchStep == 2 && v031.PracticeBaseBranch == "main", "practice token and Mission 4 sub-step persist");
+        check(ShellWindow.CreateAccountLinkLabel == "Create a free account ↗" && ShellWindow.CreateRepoLinkLabel == "Create an empty repository ↗" && ShellWindow.OwnProjectAllowLabel == "Allow changes in this folder" && !ShellWindow.SampleFolderLabel.Contains("sample"), "GitHub links and access/practice buttons use plain labels");
         check(ShellWindow.GitHubSignInLabel == "Sign in to GitHub" && ShellWindow.UploadSignInWarning.Contains("sign-in window") && ShellWindow.PracticeAllowLabel == "Let GitCompass make changes here", "plain GitHub sign-in label, upload sign-in pre-warning and inline practice permission button");
         await File.WriteAllTextAsync(Path.Combine(stateRoot, "beginner-guide.json"), "{\"SchemaVersion\":1,\"Intent\":\"\"}");
         check((await new AppStateStore(stateRoot).LoadBeginnerGuideAsync()).MissionIndex == BeginnerMissions.SeeChange, "schema 1 walkthrough without a save migrates to the first mission");

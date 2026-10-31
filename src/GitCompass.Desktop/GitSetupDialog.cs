@@ -33,6 +33,7 @@ public sealed class GitSetupDialog : Window
         var later = Button(GitSetupStep.LaterLabel, Close); later.IsCancel = true; row.Children.Add(later);
         body.Children.Add(row);
         body.Children.Add(Text("Download page: " + GitSetupStep.DownloadUrl, 12, FontWeights.Normal, "MutedBrush"));
+        body.Children.Add(Text(GitSetupStep.KeyboardHint, 12, FontWeights.Normal, "MutedBrush"));
         Content = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         Loaded += (_, _) => download.Focus();
     }

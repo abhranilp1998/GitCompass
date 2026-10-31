@@ -88,18 +88,39 @@ public partial class ShellWindow : Window
         await InitializeBeginnerAsync();
         ApplyTheme(settings.Theme);
         try { learning = new LearningCatalog(); } catch (Exception e) { setupError = "Offline lessons could not be loaded. " + e.Message; }
-        var executable = settings.GitExecutablePath ?? DependencyProbe.FindGitExecutable();
-        if (executable is not null && File.Exists(executable))
-        {
-            workspace = GitWorkspaceFactory.Create(executable);
-            if (learning is not null) inventory = await GitCommandInventory.ReadAsync(executable, learning.Manifest.SupportedCoreCommands);
-            logStore = new(store.Root);
-            workspace.Activity += ev => Dispatcher.BeginInvoke(() => AddEvent(ev));
-            workspace.Access.Changed += grant => Dispatcher.BeginInvoke(() => { if (model.Snapshot?.ProjectId == grant.ProjectId) UpdateContext(); });
-            StartScheduler();
-        }
-        else setupError = "Git for Windows was not found. Install Git, or set its git.exe path in Settings, then check again. Git remembers versions of your files on this computer. Settings has installation guidance.";
+        await ConnectGitAsync();
         ready = true; await UpdateRecentProjectsAsync(); UpdateContext(); RenderPage(); timer.Start();
+    }
+
+    public const string GitMissingMessage = "Git isn't installed yet. GitCompass needs this free tool to remember versions of your files. Use Download Git in Settings, then choose Check again.";
+
+    /// <summary>Git-only (re)connection. Safe to call again from "check again": it never restarts the UI timer, and the update scheduler starts only on the first successful connection.</summary>
+    private async Task<bool> ConnectGitAsync()
+    {
+        if (workspace is not null) return true;
+        var executable = settings.GitExecutablePath ?? DependencyProbe.FindGitExecutable();
+        if (executable is null || !File.Exists(executable))
+        {
+            if (setupError is null || !setupError.Contains(GitMissingMessage)) setupError = (setupError is null ? "" : setupError + "\n") + GitMissingMessage;
+            return false;
+        }
+        workspace = GitWorkspaceFactory.Create(executable);
+        if (learning is not null) inventory = await GitCommandInventory.ReadAsync(executable, learning.Manifest.SupportedCoreCommands);
+        logStore = new(store.Root);
+        workspace.Activity += ev => Dispatcher.BeginInvoke(() => AddEvent(ev));
+        workspace.Access.Changed += grant => Dispatcher.BeginInvoke(() => { if (model.Snapshot?.ProjectId == grant.ProjectId) UpdateContext(); });
+        StartScheduler();
+        if (setupError is not null) { setupError = setupError.Replace(GitMissingMessage, "").Trim(); if (setupError.Length == 0) setupError = null; }
+        return true;
+    }
+
+    /// <summary>Re-check for Git without re-running startup (used by the welcome Git step and Settings).</summary>
+    private async Task<bool> RecheckGitAsync()
+    {
+        try { settings = await store.LoadSettingsAsync(); } catch { /* keep the loaded settings */ }
+        var connected = await ConnectGitAsync();
+        UpdateContext(); RenderPage();
+        return connected;
     }
 
     private async Task UpdateRecentProjectsAsync()
@@ -502,9 +523,9 @@ public partial class ShellWindow : Window
     {
         Subheading(target, "Put your project on GitHub in 3 steps");
         Text(target, "1. Make a free GitHub account (skip if you have one).", true);
-        target.Children.Add(DocChip("https://github.com/signup"));
+        target.Children.Add(LabeledLink("https://github.com/signup", CreateAccountLinkLabel));
         Text(target, "2. Create a new, empty repository (an online project folder). Give it a name, and don't tick \"Add a README\".", true);
-        target.Children.Add(DocChip("https://github.com/new"));
+        target.Children.Add(LabeledLink("https://github.com/new", CreateRepoLinkLabel));
         Text(target, "3. Copy its web address (it looks like https://github.com/your-name/your-project) and paste it below.", true);
     }
     private void BuildProjectSetup()
@@ -979,12 +1000,11 @@ public partial class ShellWindow : Window
             var prerequisite = new StackPanel();
             Subheading(prerequisite, "Install Git to remember project versions");
             Text(prerequisite, "Git is the local tool GitCompass uses to save version history. You do not need a GitHub account to save versions on this computer. After installing Git for Windows, return here and check again.", true);
-            prerequisite.Children.Add(Action("Get Git for Windows", () => OpenLink("https://git-scm.com/downloads/win")));
-            prerequisite.Children.Add(Action("Check installation and continue", async () =>
+            prerequisite.Children.Add(Action(GitSetupStep.DownloadLabel, () => OpenLink(GitSetupStep.DownloadUrl)));
+            prerequisite.Children.Add(Action(GitSetupStep.CheckAgainLabel, async () =>
             {
                 if (model.Busy) return;
-                setupError = null; await InitializeAsync();
-                if (workspace is null) { Navigate("Settings"); return; }
+                if (!await RecheckGitAsync()) { Banner(GitSetupStep.StillMissing); Navigate("Settings"); return; }
                 if (pendingProjectFolder is { } selected) { pendingProjectFolder = null; await OpenProjectAsync(selected); }
                 else Navigate("Overview");
             }, true));
@@ -1070,10 +1090,10 @@ public partial class ShellWindow : Window
             await store.SaveSettingsAsync(settings);
             if (scheduler is not null) await scheduler.DisposeAsync(); StartScheduler();
             if (model.Snapshot is not null && workspace is not null) { if (monitoring.IsChecked == true) workspace.Access.Authorize(model.Snapshot.ProjectId, OperationKind.Fetch); workspace.SetMonitoring(model.Snapshot.ProjectId, monitoring.IsChecked == true); model.Snapshot = await workspace.RefreshAsync(model.Snapshot.ProjectId); }
-            Banner("Settings saved on this computer. If Git was missing, use Check installation and continue. Changed Git paths take effect when reconnecting or restarting; project write access is never restored after restart.");
+            Banner("Settings saved on this computer. If Git was missing, use \"I've installed it, check again\". Changed Git paths take effect when reconnecting or restarting; project write access is never restored after restart.");
         }, true));
         PageContent.Children.Add(Action("Sign out of GitHub API", async () => { authenticationCancellation?.Cancel(); await tokens.ClearAsync(); Banner("GitHub API tokens cleared from protected local storage."); }));
-        var row = Row(); row.Children.Add(Action("Git installation guidance", () => OpenLink("https://git-scm.com/download/win"))); row.Children.Add(Action("WebView2 prerequisite guidance", () => OpenLink("https://developer.microsoft.com/microsoft-edge/webview2/"))); PageContent.Children.Add(row);
+        var row = Row(); row.Children.Add(Action("Git installation guidance", () => OpenLink(GitSetupStep.DownloadUrl))); row.Children.Add(Action("WebView2 prerequisite guidance", () => OpenLink("https://developer.microsoft.com/microsoft-edge/webview2/"))); PageContent.Children.Add(row);
     }
     private void ApplyTheme(string theme)
     {
@@ -1200,6 +1220,15 @@ public partial class ShellWindow : Window
         Banner(attributedTitle + ": " + detail); var panel = new StackPanel { Margin = new(0, 0, 0, 16) }; Text(panel, attributedTitle, false, 15, FontWeights.SemiBold); Text(panel, detail, true);
         var friendly = GitErrorExplainer.Explain(detail) ?? GitErrorExplainer.Fallback; Text(panel, "In plain words · " + friendly.Title, false, 14, FontWeights.SemiBold); Text(panel, "What happened: " + friendly.WhatHappened, true); Text(panel, "What to do: " + friendly.WhatToDo, true); if (friendly.DocUrl is { } doc) panel.Children.Add(DocChip(doc));
         if (detail.Contains("author name and email", StringComparison.OrdinalIgnoreCase)) panel.Children.Add(Action("Set author details", () => Navigate("Author setup"), true));
+        if (friendly.Title == GitErrorExplainer.OfflineTitle)
+        {
+            panel.Children.Add(Action("Fix the web address", BuildProjectSetup, true));
+            if (IsPracticeProject && BeginnerMissions.Clamp(beginner.MissionIndex) == BeginnerMissions.Push)
+            {
+                Text(panel, "You can finish without uploading. Your saved versions stay safe on this computer.", true);
+                panel.Children.Add(Action("Finish without uploading", async () => await SetMissionAsync(BeginnerMissions.FinishWithoutPush(beginner.MissionIndex), "Walkthrough")));
+            }
+        }
         panel.Children.Add(Action("See full details", async () => await ReviewProblemContextAsync(origin, false))); panel.Children.Add(Action("Get help: make a summary to share", async () => await ReviewProblemContextAsync(origin, true))); ProblemsPanel.Children.Insert(0, panel); while (ProblemsPanel.Children.Count > 40) ProblemsPanel.Children.RemoveAt(40);
         SetActivityDock(true); DockTabs.SelectedIndex = 1;
     }
@@ -1337,6 +1366,14 @@ public partial class ShellWindow : Window
         else returnFocus?.Focus();
     }
     private async Task ReplayWalkthroughSafeAsync() { try { await ReplayWalkthroughAsync(); } catch (Exception e) { ShowProblem("Replay walkthrough", e.Message); } }
+    public const string CreateAccountLinkLabel = "Create a free account ↗";
+    public const string CreateRepoLinkLabel = "Create an empty repository ↗";
+    private Button LabeledLink(string url, string label)
+    {
+        var chip = DocChip(url); chip.Content = label;
+        AutomationProperties.SetName(chip, label.TrimEnd('↗', ' ') + " (opens github.com in your browser)");
+        chip.ToolTip = url; return chip;
+    }
     private Button DocChip(string url) => DocLinks.Chip(url, problem => Banner(problem));
     private static void Subheading(Panel panel, string title) => Text(panel, title, false, 18, FontWeights.SemiBold);
     private static void Text(Panel panel, string value, bool muted = false, double size = 14, FontWeight? weight = null)

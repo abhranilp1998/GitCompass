@@ -107,7 +107,7 @@ A modal `Window`, e.g. `SkipQuizDialog.xaml` in `GitCompass.Desktop`, owned by `
 | "Do you *really* know Git?" | "Three quick questions. No pressure. (Some pressure.)" |
 | "Whoa there, Git wizard 🧙" | "Prove it and the door is yours." |
 | "Skipping already? Bold." | "Answer 3 and we'll get out of your way." |
-| "`git gud` check" | "If you can answer these, you don't need us." |
+| "Quick Git check" | "If you can answer these, you don't need us." |
 | "Trust, but verify" | "Three questions between you and your repo." |
 | "Is this your first rodeo?" | "Let's find out in about 20 seconds." |
 

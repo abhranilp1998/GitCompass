@@ -5,6 +5,7 @@ public sealed record FriendlyGitError(string Title, string WhatHappened, string 
 /// <summary>Plain-language explanations for the Git problems beginners hit most. Returns null when nothing matches, so the original message stays authoritative.</summary>
 public static class GitErrorExplainer
 {
+    public const string OfflineTitle = "Can't reach the online copy";
     public static FriendlyGitError? Explain(string? message)
     {
         var text = (message ?? "").ToLowerInvariant();
@@ -31,7 +32,7 @@ public static class GitErrorExplainer
             return new("Nothing to save", "No files are chosen for the next saved version, or nothing has changed.",
                 "Edit a file, tick it on the Changes page, choose it for saving (stage), then save again.", "https://git-scm.com/docs/git-add");
         if (text.Contains("could not resolve host") || text.Contains("unable to access") || text.Contains("timed out") || text.Contains("network is unreachable"))
-            return new("Can't reach the online copy", "Your computer couldn't connect to the server. You may be offline, or the web address may be wrong.",
+            return new(OfflineTitle, "Your computer couldn't connect to the server. You may be offline, or the web address may be wrong.",
                 "Check your internet connection and the project's web address (in Project setup), then try again. Your work on this computer is safe.", "https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes");
         if (text.Contains("author") && text.Contains("email"))
             return new("Git needs your name", "Each saved version is labelled with a name and email, and Git doesn't have yours yet.",

@@ -38,7 +38,7 @@ internal static class StartupCloseChecks
                 var state = Path.Combine(root, "state-repeated-close"); Directory.CreateDirectory(state); WriteMissingGitSettings(state, root);
                 var window = new ShellWindow(state) { WindowStartupLocation = WindowStartupLocation.Manual, Left = -10000, Top = -10000, ShowActivated = false, ShowInTaskbar = false };
                 window.Show(); await window.InitializeAsync(); window.UpdateLayout();
-                if (!Descendants<TextBlock>(window).Any(text => text.Text.Contains("Git for Windows was not found"))) throw new InvalidOperationException("Missing Git does not display its actionable setup explanation.");
+                if (!Descendants<TextBlock>(window).Any(text => text.Text.Contains(ShellWindow.GitMissingMessage))) throw new InvalidOperationException("Missing Git does not display its actionable setup explanation.");
                 var canceled = 0; var allowed = 0; var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 window.Closing += (_, args) => { if (args.Cancel) canceled++; else allowed++; };
                 window.Closed += (_, _) => closed.SetResult();
